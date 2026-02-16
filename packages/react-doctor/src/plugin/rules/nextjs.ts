@@ -72,13 +72,15 @@ export const nextjsNoAElement: Rule = {
       const hrefAttribute = findJsxAttribute(node.attributes ?? [], "href");
       if (!hrefAttribute?.value) return;
 
-      const hrefValue =
-        hrefAttribute.value.type === "Literal"
-          ? hrefAttribute.value.value
-          : hrefAttribute.value.type === "JSXExpressionContainer" &&
-              hrefAttribute.value.expression?.type === "Literal"
-            ? hrefAttribute.value.expression.value
-            : null;
+      let hrefValue = null;
+      if (hrefAttribute.value.type === "Literal") {
+        hrefValue = hrefAttribute.value.value;
+      } else if (
+        hrefAttribute.value.type === "JSXExpressionContainer" &&
+        hrefAttribute.value.expression?.type === "Literal"
+      ) {
+        hrefValue = hrefAttribute.value.expression.value;
+      }
 
       if (typeof hrefValue === "string" && hrefValue.startsWith("/")) {
         context.report({

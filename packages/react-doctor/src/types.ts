@@ -49,6 +49,7 @@ export interface Diagnostic {
   line: number;
   column: number;
   category: string;
+  weight?: number;
 }
 
 export interface PackageJson {

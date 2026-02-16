@@ -12,12 +12,12 @@ const containsAuthCheck = (statements: EsTreeNode[]): boolean => {
   for (const statement of statements) {
     walkAst(statement, (child: EsTreeNode) => {
       if (foundAuthCall) return;
-      const callNode =
-        child.type === "CallExpression"
-          ? child
-          : child.type === "AwaitExpression" && child.argument?.type === "CallExpression"
-            ? child.argument
-            : null;
+      let callNode: EsTreeNode | null = null;
+      if (child.type === "CallExpression") {
+        callNode = child;
+      } else if (child.type === "AwaitExpression" && child.argument?.type === "CallExpression") {
+        callNode = child.argument;
+      }
 
       if (
         callNode?.callee?.type === "Identifier" &&

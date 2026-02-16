@@ -5,17 +5,13 @@ import type { EsTreeNode, Rule, RuleContext } from "../types.js";
 const extractIndexName = (node: EsTreeNode): string | null => {
   if (node.type === "Identifier" && INDEX_PARAMETER_NAMES.has(node.name)) return node.name;
 
-  if (
-    node.type === "TemplateLiteral" &&
-    node.expressions?.some(
+  if (node.type === "TemplateLiteral") {
+    const indexExpression = node.expressions?.find(
       (expression: EsTreeNode) =>
         expression.type === "Identifier" && INDEX_PARAMETER_NAMES.has(expression.name),
-    )
-  )
-    return node.expressions.find(
-      (expression: EsTreeNode) =>
-        expression.type === "Identifier" && INDEX_PARAMETER_NAMES.has(expression.name),
-    )?.name;
+    );
+    if (indexExpression) return indexExpression.name;
+  }
 
   if (
     node.type === "CallExpression" &&

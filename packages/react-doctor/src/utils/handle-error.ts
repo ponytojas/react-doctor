@@ -1,6 +1,6 @@
 import { logger } from "./logger.js";
 
-export const handleError = (error: unknown) => {
+export const handleError = (error: unknown): void => {
   logger.break();
   logger.error("Something went wrong. Please check the error below for more details.");
   logger.error("If the problem persists, please open an issue on GitHub.");

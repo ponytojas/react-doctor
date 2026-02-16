@@ -29,12 +29,15 @@ export const noUsememoSimpleExpression: Rule = {
       if (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression")
         return;
 
-      const returnExpression =
-        callback.body?.type !== "BlockStatement"
-          ? callback.body
-          : callback.body.body?.length === 1 && callback.body.body[0].type === "ReturnStatement"
-            ? callback.body.body[0].argument
-            : null;
+      let returnExpression = null;
+      if (callback.body?.type !== "BlockStatement") {
+        returnExpression = callback.body;
+      } else if (
+        callback.body.body?.length === 1 &&
+        callback.body.body[0].type === "ReturnStatement"
+      ) {
+        returnExpression = callback.body.body[0].argument;
+      }
 
       if (returnExpression && isSimpleExpression(returnExpression)) {
         context.report({
@@ -58,12 +61,12 @@ export const noLayoutPropertyAnimation: Rule = {
 
       for (const property of expression.properties ?? []) {
         if (property.type !== "Property") continue;
-        const propertyName =
-          property.key?.type === "Identifier"
-            ? property.key.name
-            : property.key?.type === "Literal"
-              ? property.key.value
-              : null;
+        let propertyName = null;
+        if (property.key?.type === "Identifier") {
+          propertyName = property.key.name;
+        } else if (property.key?.type === "Literal") {
+          propertyName = property.key.value;
+        }
 
         if (propertyName && LAYOUT_PROPERTIES.has(propertyName)) {
           context.report({

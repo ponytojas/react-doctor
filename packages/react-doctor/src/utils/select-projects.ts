@@ -10,9 +10,9 @@ export const selectProjects = async (
   projectFlag: string | undefined,
   skipPrompts: boolean,
 ): Promise<string[]> => {
-  const packages = listWorkspacePackages(rootDirectory);
+  let packages = listWorkspacePackages(rootDirectory);
   if (packages.length === 0) {
-    packages.push(...discoverReactSubprojects(rootDirectory));
+    packages = discoverReactSubprojects(rootDirectory);
   }
 
   if (packages.length === 0) return [rootDirectory];
@@ -55,7 +55,9 @@ const resolveProjectFlag = (
 };
 
 const printDiscoveredProjects = (packages: WorkspacePackage[]): void => {
-  logger.log(`${highlighter.success("✔")} Found ${highlighter.info(`${packages.length}`)} React projects:`);
+  logger.log(
+    `${highlighter.success("✔")} Found ${highlighter.info(`${packages.length}`)} React projects:`,
+  );
   logger.break();
 
   for (const workspacePackage of packages) {

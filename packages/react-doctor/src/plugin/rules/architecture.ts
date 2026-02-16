@@ -62,13 +62,15 @@ export const noRenderInRender: Rule = {
       const expression = node.expression;
       if (expression?.type !== "CallExpression") return;
 
-      const calleeName =
-        expression.callee?.type === "Identifier"
-          ? expression.callee.name
-          : expression.callee?.type === "MemberExpression" &&
-              expression.callee.property?.type === "Identifier"
-            ? expression.callee.property.name
-            : null;
+      let calleeName: string | null = null;
+      if (expression.callee?.type === "Identifier") {
+        calleeName = expression.callee.name;
+      } else if (
+        expression.callee?.type === "MemberExpression" &&
+        expression.callee.property?.type === "Identifier"
+      ) {
+        calleeName = expression.callee.property.name;
+      }
 
       if (calleeName && RENDER_FUNCTION_PATTERN.test(calleeName)) {
         context.report({

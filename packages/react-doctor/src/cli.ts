@@ -28,7 +28,7 @@ const program = new Command()
   .argument("[directory]", "project directory to scan", ".")
   .option("--no-lint", "skip linting")
   .option("--no-dead-code", "skip dead code detection")
-  .option("--no-verbose", "hide file details per rule")
+  .option("--verbose", "show file details per rule")
   .option("--score", "output only the score")
   .option("-y, --yes", "skip prompts, scan all workspace projects")
   .option("--project <name>", "select workspace project (comma-separated for multiple)")
@@ -45,7 +45,7 @@ const program = new Command()
       const scanOptions: ScanOptions = {
         lint: flags.lint,
         deadCode: flags.deadCode,
-        verbose: flags.verbose,
+        verbose: Boolean(flags.verbose),
         scoreOnly: isScoreOnly,
       };
 
