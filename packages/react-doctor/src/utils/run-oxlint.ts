@@ -13,17 +13,10 @@ const PLUGIN_CATEGORY_MAP: Record<string, string> = {
   "react-perf": "Performance",
 };
 
-const normalizePluginName = (rawPlugin: string): string =>
-  rawPlugin
-    .replace(/^eslint-plugin-/, "")
-    .replace(/^typescript-eslint$/, "typescript");
-
-const parseRuleCode = (
-  code: string,
-): { plugin: string; rule: string } => {
+const parseRuleCode = (code: string): { plugin: string; rule: string } => {
   const match = code.match(/^(.+)\((.+)\)$/);
   if (!match) return { plugin: "unknown", rule: code };
-  return { plugin: normalizePluginName(match[1]), rule: match[2] };
+  return { plugin: match[1].replace(/^eslint-plugin-/, ""), rule: match[2] };
 };
 
 const resolveOxlintBinary = (): string => {
@@ -65,9 +58,7 @@ export const runOxlint = (rootDirectory: string, hasTypeScript: boolean): Diagno
     const output = JSON.parse(stdout) as OxlintOutput;
 
     return output.diagnostics
-      .filter((diagnostic) =>
-        JSX_FILE_PATTERN.test(diagnostic.filename),
-      )
+      .filter((diagnostic) => JSX_FILE_PATTERN.test(diagnostic.filename))
       .map((diagnostic) => {
         const { plugin, rule } = parseRuleCode(diagnostic.code);
         const primaryLabel = diagnostic.labels[0];

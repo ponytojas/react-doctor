@@ -1,7 +1,4 @@
-export const groupBy = <T>(
-  items: T[],
-  keyFn: (item: T) => string,
-): Map<string, T[]> => {
+export const groupBy = <T>(items: T[], keyFn: (item: T) => string): Map<string, T[]> => {
   const groups = new Map<string, T[]>();
 
   for (const item of items) {

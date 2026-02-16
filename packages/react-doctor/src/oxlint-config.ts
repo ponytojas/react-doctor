@@ -1,22 +1,4 @@
-import type { LintPluginOptionsSchema } from "./types.js";
-
-interface OxlintCategories {
-  correctness?: "off" | "warn" | "error";
-  suspicious?: "off" | "warn" | "error";
-  pedantic?: "off" | "warn" | "error";
-  perf?: "off" | "warn" | "error";
-  restriction?: "off" | "warn" | "error";
-  style?: "off" | "warn" | "error";
-  nursery?: "off" | "warn" | "error";
-}
-
-interface OxlintConfig {
-  categories: OxlintCategories;
-  plugins: LintPluginOptionsSchema[];
-  rules: Record<string, "error" | "warn" | "off">;
-}
-
-export const OXLINT_CONFIG: OxlintConfig = {
+export const OXLINT_CONFIG = {
   categories: {
     correctness: "off",
     suspicious: "off",

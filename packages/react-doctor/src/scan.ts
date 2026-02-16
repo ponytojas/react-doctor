@@ -1,55 +1,25 @@
 import { SEPARATOR_LENGTH } from "./constants.js";
 import type { Diagnostic } from "./types.js";
 import { discoverProject, formatFrameworkName } from "./utils/discover-project.js";
+import { groupBy } from "./utils/group-by.js";
 import { highlighter } from "./utils/highlighter.js";
 import { logger } from "./utils/logger.js";
 import { runOxlint } from "./utils/run-oxlint.js";
 
-const groupDiagnosticsByCategory = (diagnostics: Diagnostic[]): Map<string, Diagnostic[]> => {
-  const groups = new Map<string, Diagnostic[]>();
-
-  for (const diagnostic of diagnostics) {
-    const existing = groups.get(diagnostic.category) ?? [];
-    existing.push(diagnostic);
-    groups.set(diagnostic.category, existing);
-  }
-
-  return groups;
-};
-
-const groupDiagnosticsByRule = (
-  diagnostics: Diagnostic[],
-): Map<string, Diagnostic[]> => {
-  const groups = new Map<string, Diagnostic[]>();
-
-  for (const diagnostic of diagnostics) {
-    const ruleKey = `${diagnostic.plugin}/${diagnostic.rule}`;
-    const existing = groups.get(ruleKey) ?? [];
-    existing.push(diagnostic);
-    groups.set(ruleKey, existing);
-  }
-
-  return groups;
-};
-
-const printCategorySection = (
-  category: string,
-  diagnostics: Diagnostic[],
-): void => {
-  const separatorFill = "─".repeat(
-    SEPARATOR_LENGTH - category.length - 6,
-  );
+const printCategorySection = (category: string, diagnostics: Diagnostic[]): void => {
+  const separatorFill = "─".repeat(SEPARATOR_LENGTH - category.length - 6);
   logger.log(`──── ${category} ${separatorFill}`);
   logger.break();
 
-  const ruleGroups = groupDiagnosticsByRule(diagnostics);
+  const ruleGroups = groupBy(
+    diagnostics,
+    (diagnostic) => `${diagnostic.plugin}/${diagnostic.rule}`,
+  );
 
   for (const [ruleKey, ruleDiagnostics] of ruleGroups) {
     const firstDiagnostic = ruleDiagnostics[0];
     const icon =
-      firstDiagnostic.severity === "error"
-        ? highlighter.error("✗")
-        : highlighter.warn("⚠");
+      firstDiagnostic.severity === "error" ? highlighter.error("✗") : highlighter.warn("⚠");
     const count = ruleDiagnostics.length;
     const countLabel = count > 1 ? ` (${count})` : "";
 
@@ -66,8 +36,7 @@ const printCategorySection = (
     }
 
     for (const [filePath, occurrenceCount] of fileOccurrences) {
-      const fileCountLabel =
-        occurrenceCount > 1 ? ` (${occurrenceCount}x)` : "";
+      const fileCountLabel = occurrenceCount > 1 ? ` (${occurrenceCount}x)` : "";
       logger.dim(`    ${filePath}${fileCountLabel}`);
     }
 
@@ -115,7 +84,7 @@ export const scan = (directory: string): void => {
     return;
   }
 
-  const groupedDiagnostics = groupDiagnosticsByCategory(diagnostics);
+  const groupedDiagnostics = groupBy(diagnostics, (diagnostic) => diagnostic.category);
 
   for (const [category, categoryDiagnostics] of groupedDiagnostics) {
     printCategorySection(category, categoryDiagnostics);

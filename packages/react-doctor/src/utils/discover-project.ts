@@ -50,9 +50,7 @@ const countSourceFiles = (rootDirectory: string): number => {
     .filter((filePath) => filePath.length > 0 && SOURCE_FILE_PATTERN.test(filePath)).length;
 };
 
-const detectFramework = (
-  dependencies: Record<string, string>,
-): Framework => {
+const detectFramework = (dependencies: Record<string, string>): Framework => {
   for (const [packageName, frameworkName] of Object.entries(FRAMEWORK_PACKAGES)) {
     if (dependencies[packageName]) {
       return frameworkName;
@@ -61,9 +59,7 @@ const detectFramework = (
   return "unknown";
 };
 
-const extractDependencyInfo = (
-  packageJson: PackageJson,
-): DependencyInfo => {
+const extractDependencyInfo = (packageJson: PackageJson): DependencyInfo => {
   const allDependencies = {
     ...packageJson.dependencies,
     ...packageJson.devDependencies,
@@ -75,9 +71,7 @@ const extractDependencyInfo = (
   };
 };
 
-const parsePnpmWorkspacePatterns = (
-  rootDirectory: string,
-): string[] => {
+const parsePnpmWorkspacePatterns = (rootDirectory: string): string[] => {
   const workspacePath = path.join(rootDirectory, "pnpm-workspace.yaml");
   if (!fs.existsSync(workspacePath)) return [];
 
@@ -101,10 +95,7 @@ const parsePnpmWorkspacePatterns = (
   return patterns;
 };
 
-const getWorkspacePatterns = (
-  rootDirectory: string,
-  packageJson: PackageJson,
-): string[] => {
+const getWorkspacePatterns = (rootDirectory: string, packageJson: PackageJson): string[] => {
   const pnpmPatterns = parsePnpmWorkspacePatterns(rootDirectory);
   if (pnpmPatterns.length > 0) return pnpmPatterns;
 
@@ -119,27 +110,18 @@ const getWorkspacePatterns = (
   return [];
 };
 
-const resolveWorkspaceDirectories = (
-  rootDirectory: string,
-  pattern: string,
-): string[] => {
+const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): string[] => {
   const cleanPattern = pattern.replace(/["']/g, "").replace(/\/\*\*$/, "/*");
 
   if (!cleanPattern.includes("*")) {
     const directoryPath = path.join(rootDirectory, cleanPattern);
-    if (
-      fs.existsSync(directoryPath) &&
-      fs.existsSync(path.join(directoryPath, "package.json"))
-    ) {
+    if (fs.existsSync(directoryPath) && fs.existsSync(path.join(directoryPath, "package.json"))) {
       return [directoryPath];
     }
     return [];
   }
 
-  const baseDirectory = path.join(
-    rootDirectory,
-    cleanPattern.slice(0, cleanPattern.indexOf("*")),
-  );
+  const baseDirectory = path.join(rootDirectory, cleanPattern.slice(0, cleanPattern.indexOf("*")));
 
   if (!fs.existsSync(baseDirectory) || !fs.statSync(baseDirectory).isDirectory()) {
     return [];
@@ -150,15 +132,11 @@ const resolveWorkspaceDirectories = (
     .map((entry) => path.join(baseDirectory, entry))
     .filter(
       (entryPath) =>
-        fs.statSync(entryPath).isDirectory() &&
-        fs.existsSync(path.join(entryPath, "package.json")),
+        fs.statSync(entryPath).isDirectory() && fs.existsSync(path.join(entryPath, "package.json")),
     );
 };
 
-const findReactInWorkspaces = (
-  rootDirectory: string,
-  packageJson: PackageJson,
-): DependencyInfo => {
+const findReactInWorkspaces = (rootDirectory: string, packageJson: PackageJson): DependencyInfo => {
   const patterns = getWorkspacePatterns(rootDirectory, packageJson);
   const result: DependencyInfo = { reactVersion: null, framework: "unknown" };
 
