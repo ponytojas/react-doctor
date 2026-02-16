@@ -2,7 +2,7 @@
   "name": "react-doctor",
   "version": "0.0.3",
   "bin": {
-    "react-doctor": "./dist/cli.cjs"
+    "react-doctor": "./dist/cli.js"
   },
   "files": [
     "dist"
@@ -11,21 +11,25 @@
   "exports": {
     ".": {
       "types": "./dist/cli.d.ts",
-      "import": "./dist/cli.js",
-      "require": "./dist/cli.cjs"
+      "default": "./dist/cli.js"
     }
   },
   "scripts": {
-    "dev": "tsup --watch",
-    "build": "rm -rf dist && NODE_ENV=production tsup",
+    "dev": "tsdown --watch",
+    "build": "rm -rf dist && NODE_ENV=production tsdown",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "commander": "^14.0.3",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "knip": "^5.83.1",
+    "ora": "^9.3.0",
     "oxlint": "^1.47.0",
-    "picocolors": "^1.1.1"
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
   },
   "devDependencies": {
-    "tsup": "^8.5.1"
+    "@types/prompts": "^2.4.9",
+    "tsdown": "^0.20.3"
   }
 }

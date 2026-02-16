@@ -8,11 +8,11 @@ A general-purpose CLI that diagnoses React codebase health. Run it in a project 
 ## Testing
 
 ```bash
-pnpm -r run build && node packages/react-doctor/dist/cli.cjs ./website
+pnpm -r run build && node packages/react-doctor/dist/cli.js ./website
 ```
 
 Point it at any React project:
 
 ```bash
-node packages/react-doctor/dist/cli.cjs /path/to/your/react-project
+node packages/react-doctor/dist/cli.js /path/to/your/react-project
 ```

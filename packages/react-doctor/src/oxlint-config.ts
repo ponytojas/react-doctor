@@ -1,4 +1,55 @@
-export const OXLINT_CONFIG = {
+import { createRequire } from "node:module";
+import type { Framework } from "./types.js";
+
+const esmRequire = createRequire(import.meta.url);
+
+const NEXTJS_RULES: Record<string, string> = {
+  "react-doctor/nextjs-no-img-element": "warn",
+  "react-doctor/nextjs-async-client-component": "error",
+  "react-doctor/nextjs-no-a-element": "warn",
+  "react-doctor/nextjs-no-use-search-params-without-suspense": "error",
+  "react-doctor/nextjs-no-client-fetch-for-server-data": "warn",
+  "react-doctor/nextjs-missing-metadata": "warn",
+  "react-doctor/nextjs-no-client-side-redirect": "warn",
+};
+
+const REACT_COMPILER_RULES: Record<string, string> = {
+  "react-hooks-js/set-state-in-render": "error",
+  "react-hooks-js/immutability": "error",
+  "react-hooks-js/refs": "error",
+  "react-hooks-js/purity": "error",
+  "react-hooks-js/hooks": "error",
+  "react-hooks-js/set-state-in-effect": "error",
+  "react-hooks-js/globals": "error",
+  "react-hooks-js/error-boundaries": "error",
+  "react-hooks-js/preserve-manual-memoization": "error",
+  "react-hooks-js/unsupported-syntax": "error",
+  "react-hooks-js/component-hook-factories": "error",
+  "react-hooks-js/static-components": "error",
+  "react-hooks-js/use-memo": "error",
+  "react-hooks-js/void-use-memo": "error",
+  "react-hooks-js/incompatible-library": "error",
+  "react-hooks-js/todo": "error",
+};
+
+const REACT_PERF_RULES: Record<string, string> = {
+  "react-perf/jsx-no-new-object-as-prop": "warn",
+  "react-perf/jsx-no-new-array-as-prop": "warn",
+  "react-perf/jsx-no-new-function-as-prop": "warn",
+  "react-perf/jsx-no-jsx-as-prop": "warn",
+};
+
+interface OxlintConfigOptions {
+  pluginPath: string;
+  framework: Framework;
+  hasReactCompiler: boolean;
+}
+
+export const createOxlintConfig = ({
+  pluginPath,
+  framework,
+  hasReactCompiler,
+}: OxlintConfigOptions) => ({
   categories: {
     correctness: "off",
     suspicious: "off",
@@ -8,7 +59,19 @@ export const OXLINT_CONFIG = {
     style: "off",
     nursery: "off",
   },
-  plugins: ["react", "jsx-a11y", "react-perf"],
+  plugins: [
+    "react",
+    "jsx-a11y",
+    ...(hasReactCompiler ? [] : ["react-perf"]),
+    "import",
+    "typescript",
+  ],
+  jsPlugins: [
+    ...(hasReactCompiler
+      ? [{ name: "react-hooks-js", specifier: esmRequire.resolve("eslint-plugin-react-hooks") }]
+      : []),
+    pluginPath,
+  ],
   rules: {
     "react/rules-of-hooks": "error",
     "react/no-direct-mutation-state": "error",
@@ -40,9 +103,70 @@ export const OXLINT_CONFIG = {
     "jsx-a11y/no-distracting-elements": "error",
     "jsx-a11y/iframe-has-title": "warn",
 
-    "react-perf/jsx-no-new-object-as-prop": "warn",
-    "react-perf/jsx-no-new-array-as-prop": "warn",
-    "react-perf/jsx-no-new-function-as-prop": "warn",
-    "react-perf/jsx-no-jsx-as-prop": "warn",
+    "import/no-cycle": "warn",
+    "import/no-self-import": "error",
+    "import/no-duplicates": "warn",
+    "import/no-named-default": "warn",
+
+    "typescript/consistent-type-imports": "warn",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/prefer-ts-expect-error": "warn",
+    "typescript/no-unnecessary-type-assertion": "warn",
+
+    ...(hasReactCompiler ? REACT_COMPILER_RULES : REACT_PERF_RULES),
+
+    "react-doctor/no-derived-state-effect": "error",
+    "react-doctor/no-fetch-in-effect": "error",
+    "react-doctor/no-cascading-set-state": "warn",
+    "react-doctor/no-effect-event-handler": "warn",
+    "react-doctor/no-derived-useState": "warn",
+    "react-doctor/prefer-useReducer": "warn",
+    "react-doctor/rerender-lazy-state-init": "warn",
+    "react-doctor/rerender-functional-setstate": "warn",
+    "react-doctor/rerender-dependencies": "error",
+
+    "react-doctor/no-generic-handler-names": "warn",
+    "react-doctor/no-giant-component": "warn",
+    "react-doctor/no-render-in-render": "warn",
+    "react-doctor/no-nested-component-definition": "error",
+
+    "react-doctor/no-usememo-simple-expression": "warn",
+    "react-doctor/no-layout-property-animation": "error",
+    "react-doctor/rerender-memo-with-default-value": "warn",
+    "react-doctor/rendering-animate-svg-wrapper": "warn",
+    "react-doctor/rendering-usetransition-loading": "warn",
+    "react-doctor/rendering-hydration-no-flicker": "warn",
+
+    "react-doctor/no-eval": "error",
+    "react-doctor/no-secrets-in-client-code": "error",
+
+    "react-doctor/no-barrel-import": "warn",
+    "react-doctor/no-full-lodash-import": "warn",
+    "react-doctor/no-moment": "warn",
+    "react-doctor/prefer-dynamic-import": "warn",
+    "react-doctor/use-lazy-motion": "warn",
+    "react-doctor/no-undeferred-third-party": "warn",
+
+    "react-doctor/no-array-index-as-key": "warn",
+    "react-doctor/rendering-conditional-render": "warn",
+    "react-doctor/no-prevent-default": "warn",
+
+    "react-doctor/server-auth-actions": "error",
+    "react-doctor/server-after-nonblocking": "warn",
+
+    "react-doctor/client-passive-event-listeners": "warn",
+
+    "react-doctor/js-combine-iterations": "warn",
+    "react-doctor/js-tosorted-immutable": "warn",
+    "react-doctor/js-hoist-regexp": "warn",
+    "react-doctor/js-min-max-loop": "warn",
+    "react-doctor/js-set-map-lookups": "warn",
+    "react-doctor/js-batch-dom-css": "warn",
+    "react-doctor/js-index-maps": "warn",
+    "react-doctor/js-cache-storage": "warn",
+    "react-doctor/js-early-exit": "warn",
+    "react-doctor/async-parallel": "warn",
+    ...(framework === "nextjs" ? NEXTJS_RULES : {}),
   },
-};
+});

@@ -1,22 +1,47 @@
-import { SEPARATOR_LENGTH } from "./constants.js";
-import type { Diagnostic } from "./types.js";
+import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { performance } from "node:perf_hooks";
+import { SEPARATOR_LENGTH_CHARS } from "./constants.js";
+import type { Diagnostic, ScanOptions } from "./types.js";
 import { discoverProject, formatFrameworkName } from "./utils/discover-project.js";
 import { groupBy } from "./utils/group-by.js";
 import { highlighter } from "./utils/highlighter.js";
 import { logger } from "./utils/logger.js";
+import { runKnip } from "./utils/run-knip.js";
 import { runOxlint } from "./utils/run-oxlint.js";
+import { spinner } from "./utils/spinner.js";
 
-const printCategorySection = (category: string, diagnostics: Diagnostic[]): void => {
-  const separatorFill = "─".repeat(SEPARATOR_LENGTH - category.length - 6);
-  logger.log(`──── ${category} ${separatorFill}`);
-  logger.break();
+const SEVERITY_ORDER: Record<Diagnostic["severity"], number> = {
+  error: 0,
+  warning: 1,
+};
 
+const sortBySeverity = (diagnosticGroups: [string, Diagnostic[]][]): [string, Diagnostic[]][] =>
+  diagnosticGroups.toSorted(([, diagnosticsA], [, diagnosticsB]) => {
+    const severityA = SEVERITY_ORDER[diagnosticsA[0].severity];
+    const severityB = SEVERITY_ORDER[diagnosticsB[0].severity];
+    return severityA - severityB;
+  });
+
+const collectAffectedFiles = (diagnostics: Diagnostic[]): Set<string> => {
+  const files = new Set<string>();
+  for (const diagnostic of diagnostics) {
+    files.add(diagnostic.filePath);
+  }
+  return files;
+};
+
+const printDiagnostics = (diagnostics: Diagnostic[]): void => {
   const ruleGroups = groupBy(
     diagnostics,
     (diagnostic) => `${diagnostic.plugin}/${diagnostic.rule}`,
   );
 
-  for (const [ruleKey, ruleDiagnostics] of ruleGroups) {
+  const sortedRuleGroups = sortBySeverity([...ruleGroups.entries()]);
+
+  for (const [, ruleDiagnostics] of sortedRuleGroups) {
     const firstDiagnostic = ruleDiagnostics[0];
     const icon =
       firstDiagnostic.severity === "error" ? highlighter.error("✗") : highlighter.warn("⚠");
@@ -27,28 +52,45 @@ const printCategorySection = (category: string, diagnostics: Diagnostic[]): void
     if (firstDiagnostic.help) {
       logger.dim(`    ${firstDiagnostic.help}`);
     }
-    logger.dim(`    Rule: ${ruleKey}`);
 
-    const fileOccurrences = new Map<string, number>();
+    const fileLines = new Map<string, number[]>();
     for (const diagnostic of ruleDiagnostics) {
-      const currentCount = fileOccurrences.get(diagnostic.filePath) ?? 0;
-      fileOccurrences.set(diagnostic.filePath, currentCount + 1);
+      const lines = fileLines.get(diagnostic.filePath) ?? [];
+      if (diagnostic.line > 0) {
+        lines.push(diagnostic.line);
+      }
+      fileLines.set(diagnostic.filePath, lines);
     }
 
-    for (const [filePath, occurrenceCount] of fileOccurrences) {
-      const fileCountLabel = occurrenceCount > 1 ? ` (${occurrenceCount}x)` : "";
-      logger.dim(`    ${filePath}${fileCountLabel}`);
+    for (const [filePath, lines] of fileLines) {
+      const lineLabel = lines.length > 0 ? `: ${lines.join(", ")}` : "";
+      logger.dim(`    ${filePath}${lineLabel}`);
     }
 
     logger.break();
   }
 };
 
-const printSummary = (diagnostics: Diagnostic[]): void => {
+const formatElapsedTime = (elapsedMilliseconds: number): string => {
+  if (elapsedMilliseconds < 1000) {
+    return `${Math.round(elapsedMilliseconds)}ms`;
+  }
+  return `${(elapsedMilliseconds / 1000).toFixed(1)}s`;
+};
+
+const writeDiagnosticsFile = (diagnostics: Diagnostic[]): string => {
+  const outputPath = join(tmpdir(), `react-doctor-${randomUUID()}.json`);
+  writeFileSync(outputPath, JSON.stringify(diagnostics, null, 2));
+  return outputPath;
+};
+
+const printSummary = (diagnostics: Diagnostic[], elapsedMilliseconds: number): void => {
   const errorCount = diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
   const warningCount = diagnostics.filter((diagnostic) => diagnostic.severity === "warning").length;
+  const affectedFileCount = collectAffectedFiles(diagnostics).size;
+  const elapsed = formatElapsedTime(elapsedMilliseconds);
 
-  logger.log("─".repeat(SEPARATOR_LENGTH));
+  logger.log("─".repeat(SEPARATOR_LENGTH_CHARS));
   logger.break();
 
   const parts: string[] = [];
@@ -58,11 +100,20 @@ const printSummary = (diagnostics: Diagnostic[]): void => {
   if (warningCount > 0) {
     parts.push(highlighter.warn(`${warningCount} warning${warningCount === 1 ? "" : "s"}`));
   }
+  parts.push(
+    highlighter.dim(`across ${affectedFileCount} file${affectedFileCount === 1 ? "" : "s"}`),
+  );
+  parts.push(highlighter.dim(`in ${elapsed}`));
 
   logger.log(parts.join("  "));
+
+  const diagnosticsFilePath = writeDiagnosticsFile(diagnostics);
+  logger.break();
+  logger.dim(`Full diagnostics written to ${diagnosticsFilePath}`);
 };
 
-export const scan = (directory: string): void => {
+export const scan = async (directory: string, options: ScanOptions): Promise<void> => {
+  const startTime = performance.now();
   const projectInfo = discoverProject(directory);
 
   if (!projectInfo.reactVersion) {
@@ -72,23 +123,51 @@ export const scan = (directory: string): void => {
   const frameworkLabel = formatFrameworkName(projectInfo.framework);
   const languageLabel = projectInfo.hasTypeScript ? "TypeScript" : "JavaScript";
 
-  logger.log(
-    `Found: ${frameworkLabel} · React ${projectInfo.reactVersion} · ${languageLabel} · ${projectInfo.sourceFileCount} source files`,
+  const completeStep = (message: string) => {
+    spinner(message).start().succeed(message);
+  };
+
+  completeStep(`Detecting framework. Found ${highlighter.info(frameworkLabel)}.`);
+  completeStep(
+    `Detecting React version. Found ${highlighter.info(`React ${projectInfo.reactVersion}`)}.`,
   );
+  completeStep(`Detecting language. Found ${highlighter.info(languageLabel)}.`);
+  completeStep(
+    `Detecting React Compiler. ${projectInfo.hasReactCompiler ? highlighter.info("Found React Compiler.") : "Not found."}`,
+  );
+  completeStep(`Found ${highlighter.info(`${projectInfo.sourceFileCount}`)} source files.`);
+
   logger.break();
 
-  const diagnostics = runOxlint(directory, projectInfo.hasTypeScript);
+  const diagnostics: Diagnostic[] = [];
+
+  if (options.lint) {
+    const lintSpinner = spinner("Running lint checks...").start();
+    diagnostics.push(
+      ...(await runOxlint(
+        directory,
+        projectInfo.hasTypeScript,
+        projectInfo.framework,
+        projectInfo.hasReactCompiler,
+      )),
+    );
+    lintSpinner.succeed("Running lint checks.");
+  }
+
+  if (options.deadCode) {
+    const deadCodeSpinner = spinner("Detecting dead code...").start();
+    diagnostics.push(...(await runKnip(directory)));
+    deadCodeSpinner.succeed("Detecting dead code.");
+  }
+
+  const elapsedMilliseconds = performance.now() - startTime;
 
   if (diagnostics.length === 0) {
     logger.success("No issues found!");
     return;
   }
 
-  const groupedDiagnostics = groupBy(diagnostics, (diagnostic) => diagnostic.category);
+  printDiagnostics(diagnostics);
 
-  for (const [category, categoryDiagnostics] of groupedDiagnostics) {
-    printCategorySection(category, categoryDiagnostics);
-  }
-
-  printSummary(diagnostics);
+  printSummary(diagnostics, elapsedMilliseconds);
 };

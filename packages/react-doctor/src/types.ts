@@ -5,6 +5,7 @@ export interface ProjectInfo {
   reactVersion: string | null;
   framework: Framework;
   hasTypeScript: boolean;
+  hasReactCompiler: boolean;
   sourceFileCount: number;
 }
 
@@ -48,4 +49,56 @@ export interface Diagnostic {
   line: number;
   column: number;
   category: string;
+}
+
+export interface PackageJson {
+  name?: string;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  workspaces?: string[] | { packages: string[] };
+}
+
+export interface DependencyInfo {
+  reactVersion: string | null;
+  framework: Framework;
+}
+
+export interface KnipIssue {
+  filePath: string;
+  symbol: string;
+  type: string;
+}
+
+export interface KnipIssueRecords {
+  [workspace: string]: {
+    [filePath: string]: KnipIssue;
+  };
+}
+
+export interface ScanOptions {
+  lint: boolean;
+  deadCode: boolean;
+}
+
+export interface WorkspacePackage {
+  name: string;
+  directory: string;
+}
+
+export interface KnipResults {
+  issues: {
+    files: Set<string>;
+    dependencies: KnipIssueRecords;
+    devDependencies: KnipIssueRecords;
+    unlisted: KnipIssueRecords;
+    exports: KnipIssueRecords;
+    types: KnipIssueRecords;
+    duplicates: KnipIssueRecords;
+  };
+  counters: Record<string, number>;
+}
+
+export interface CleanedDiagnostic {
+  message: string;
+  help: string;
 }

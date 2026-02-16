@@ -1,0 +1,187 @@
+import {
+  LAYOUT_PROPERTIES,
+  LOADING_STATE_PATTERN,
+  MOTION_ANIMATE_PROPS,
+  SETTER_PATTERN,
+} from "../constants.js";
+import {
+  getEffectCallback,
+  isComponentAssignment,
+  isHookCall,
+  isSimpleExpression,
+  isUppercaseName,
+} from "../helpers.js";
+import type { EsTreeNode, Rule, RuleContext } from "../types.js";
+
+export const noUsememoSimpleExpression: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (!isHookCall(node, "useMemo")) return;
+
+      const callback = node.arguments?.[0];
+      if (!callback) return;
+      if (callback.type !== "ArrowFunctionExpression" && callback.type !== "FunctionExpression")
+        return;
+
+      const returnExpression =
+        callback.body?.type !== "BlockStatement"
+          ? callback.body
+          : callback.body.body?.length === 1 && callback.body.body[0].type === "ReturnStatement"
+            ? callback.body.body[0].argument
+            : null;
+
+      if (returnExpression && isSimpleExpression(returnExpression)) {
+        context.report({
+          node,
+          message:
+            "useMemo wrapping a trivially cheap expression — memo overhead exceeds the computation",
+        });
+      }
+    },
+  }),
+};
+
+export const noLayoutPropertyAnimation: Rule = {
+  create: (context: RuleContext) => ({
+    JSXAttribute(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || !MOTION_ANIMATE_PROPS.has(node.name.name)) return;
+      if (!node.value || node.value.type !== "JSXExpressionContainer") return;
+
+      const expression = node.value.expression;
+      if (expression?.type !== "ObjectExpression") return;
+
+      for (const property of expression.properties ?? []) {
+        if (property.type !== "Property") continue;
+        const propertyName =
+          property.key?.type === "Identifier"
+            ? property.key.name
+            : property.key?.type === "Literal"
+              ? property.key.value
+              : null;
+
+        if (propertyName && LAYOUT_PROPERTIES.has(propertyName)) {
+          context.report({
+            node: property,
+            message: `Animating layout property "${propertyName}" triggers layout recalculation every frame — use transform/scale or the layout prop`,
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const rerenderMemoWithDefaultValue: Rule = {
+  create: (context: RuleContext) => {
+    const checkDefaultProps = (params: EsTreeNode[]): void => {
+      for (const param of params) {
+        if (param.type !== "ObjectPattern") continue;
+        for (const property of param.properties ?? []) {
+          if (property.type !== "Property" || property.value?.type !== "AssignmentPattern")
+            continue;
+          const defaultValue = property.value.right;
+          if (defaultValue?.type === "ObjectExpression" && defaultValue.properties?.length === 0) {
+            context.report({
+              node: defaultValue,
+              message:
+                "Default prop value {} creates a new object reference every render — extract to a module-level constant",
+            });
+          }
+          if (defaultValue?.type === "ArrayExpression" && defaultValue.elements?.length === 0) {
+            context.report({
+              node: defaultValue,
+              message:
+                "Default prop value [] creates a new array reference every render — extract to a module-level constant",
+            });
+          }
+        }
+      }
+    };
+
+    return {
+      FunctionDeclaration(node: EsTreeNode) {
+        if (!node.id?.name || !isUppercaseName(node.id.name)) return;
+        checkDefaultProps(node.params ?? []);
+      },
+      VariableDeclarator(node: EsTreeNode) {
+        if (!isComponentAssignment(node)) return;
+        checkDefaultProps(node.init.params ?? []);
+      },
+    };
+  },
+};
+
+export const renderingAnimateSvgWrapper: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "svg") return;
+
+      const hasAnimationProp = node.attributes?.some(
+        (attribute: EsTreeNode) =>
+          attribute.type === "JSXAttribute" &&
+          attribute.name?.type === "JSXIdentifier" &&
+          MOTION_ANIMATE_PROPS.has(attribute.name.name),
+      );
+
+      if (hasAnimationProp) {
+        context.report({
+          node,
+          message:
+            "Animation props directly on <svg> — wrap in a <div> or <motion.div> for better rendering performance",
+        });
+      }
+    },
+  }),
+};
+
+export const renderingUsetransitionLoading: Rule = {
+  create: (context: RuleContext) => ({
+    VariableDeclarator(node: EsTreeNode) {
+      if (node.id?.type !== "ArrayPattern" || !node.id.elements?.length) return;
+      if (!node.init || !isHookCall(node.init, "useState")) return;
+      if (!node.init.arguments?.length) return;
+
+      const initializer = node.init.arguments[0];
+      if (initializer.type !== "Literal" || initializer.value !== false) return;
+
+      const stateVariableName = node.id.elements[0]?.name;
+      if (!stateVariableName || !LOADING_STATE_PATTERN.test(stateVariableName)) return;
+
+      context.report({
+        node: node.init,
+        message: `useState for "${stateVariableName}" — consider useTransition for non-urgent loading states`,
+      });
+    },
+  }),
+};
+
+export const renderingHydrationNoFlicker: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (!isHookCall(node, "useEffect") || node.arguments?.length < 2) return;
+
+      const depsNode = node.arguments[1];
+      if (depsNode.type !== "ArrayExpression" || depsNode.elements?.length !== 0) return;
+
+      const callback = getEffectCallback(node);
+      if (!callback) return;
+
+      const bodyStatements =
+        callback.body?.type === "BlockStatement" ? callback.body.body : [callback.body];
+      if (!bodyStatements || bodyStatements.length !== 1) return;
+
+      const soleStatement = bodyStatements[0];
+      if (
+        soleStatement?.type === "ExpressionStatement" &&
+        soleStatement.expression?.type === "CallExpression" &&
+        soleStatement.expression.callee?.type === "Identifier" &&
+        SETTER_PATTERN.test(soleStatement.expression.callee.name)
+      ) {
+        context.report({
+          node,
+          message:
+            "useEffect(setState, []) on mount causes a flash — consider useSyncExternalStore or suppressHydrationWarning",
+        });
+      }
+    },
+  }),
+};

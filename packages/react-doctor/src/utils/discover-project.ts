@@ -2,18 +2,45 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { SOURCE_FILE_PATTERN } from "../constants.js";
-import type { Framework, ProjectInfo } from "../types.js";
+import type {
+  DependencyInfo,
+  Framework,
+  PackageJson,
+  ProjectInfo,
+  WorkspacePackage,
+} from "../types.js";
+import { readPackageJson } from "./read-package-json.js";
 
-interface PackageJson {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  workspaces?: string[] | { packages: string[] };
-}
+const REACT_COMPILER_PACKAGES = new Set([
+  "babel-plugin-react-compiler",
+  "react-compiler-runtime",
+  "eslint-plugin-react-compiler",
+]);
 
-interface DependencyInfo {
-  reactVersion: string | null;
-  framework: Framework;
-}
+const NEXT_CONFIG_FILENAMES = [
+  "next.config.js",
+  "next.config.mjs",
+  "next.config.ts",
+  "next.config.cjs",
+];
+
+const BABEL_CONFIG_FILENAMES = [
+  ".babelrc",
+  ".babelrc.json",
+  "babel.config.js",
+  "babel.config.json",
+  "babel.config.cjs",
+  "babel.config.mjs",
+];
+
+const VITE_CONFIG_FILENAMES = [
+  "vite.config.js",
+  "vite.config.ts",
+  "vite.config.mjs",
+  "vite.config.cjs",
+];
+
+const REACT_COMPILER_CONFIG_PATTERN = /react-compiler|reactCompiler/;
 
 const FRAMEWORK_PACKAGES: Record<string, Framework> = {
   next: "nextjs",
@@ -50,6 +77,11 @@ const countSourceFiles = (rootDirectory: string): number => {
     .filter((filePath) => filePath.length > 0 && SOURCE_FILE_PATTERN.test(filePath)).length;
 };
 
+const collectAllDependencies = (packageJson: PackageJson): Record<string, string> => ({
+  ...packageJson.dependencies,
+  ...packageJson.devDependencies,
+});
+
 const detectFramework = (dependencies: Record<string, string>): Framework => {
   for (const [packageName, frameworkName] of Object.entries(FRAMEWORK_PACKAGES)) {
     if (dependencies[packageName]) {
@@ -60,11 +92,7 @@ const detectFramework = (dependencies: Record<string, string>): Framework => {
 };
 
 const extractDependencyInfo = (packageJson: PackageJson): DependencyInfo => {
-  const allDependencies = {
-    ...packageJson.dependencies,
-    ...packageJson.devDependencies,
-  };
-
+  const allDependencies = collectAllDependencies(packageJson);
   return {
     reactVersion: allDependencies.react ?? null,
     framework: detectFramework(allDependencies),
@@ -136,6 +164,34 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
     );
 };
 
+const findDependencyInfoFromAncestors = (startDirectory: string): DependencyInfo => {
+  let currentDirectory = path.dirname(startDirectory);
+  const result: DependencyInfo = { reactVersion: null, framework: "unknown" };
+
+  while (currentDirectory !== path.dirname(currentDirectory)) {
+    const packageJsonPath = path.join(currentDirectory, "package.json");
+    if (fs.existsSync(packageJsonPath)) {
+      const packageJson = readPackageJson(packageJsonPath);
+      const info = extractDependencyInfo(packageJson);
+
+      if (!result.reactVersion && info.reactVersion) {
+        result.reactVersion = info.reactVersion;
+      }
+      if (result.framework === "unknown" && info.framework !== "unknown") {
+        result.framework = info.framework;
+      }
+
+      if (result.reactVersion && result.framework !== "unknown") {
+        return result;
+      }
+    }
+
+    currentDirectory = path.dirname(currentDirectory);
+  }
+
+  return result;
+};
+
 const findReactInWorkspaces = (rootDirectory: string, packageJson: PackageJson): DependencyInfo => {
   const patterns = getWorkspacePatterns(rootDirectory, packageJson);
   const result: DependencyInfo = { reactVersion: null, framework: "unknown" };
@@ -144,9 +200,7 @@ const findReactInWorkspaces = (rootDirectory: string, packageJson: PackageJson):
     const directories = resolveWorkspaceDirectories(rootDirectory, pattern);
 
     for (const workspaceDirectory of directories) {
-      const workspacePackageJson = JSON.parse(
-        fs.readFileSync(path.join(workspaceDirectory, "package.json"), "utf-8"),
-      ) as PackageJson;
+      const workspacePackageJson = readPackageJson(path.join(workspaceDirectory, "package.json"));
       const info = extractDependencyInfo(workspacePackageJson);
 
       if (info.reactVersion && !result.reactVersion) {
@@ -165,34 +219,116 @@ const findReactInWorkspaces = (rootDirectory: string, packageJson: PackageJson):
   return result;
 };
 
+const hasReactDependency = (packageJson: PackageJson): boolean => {
+  const allDependencies = collectAllDependencies(packageJson);
+  return Object.keys(allDependencies).some(
+    (packageName) => packageName === "next" || packageName.includes("react"),
+  );
+};
+
+export const listWorkspacePackages = (rootDirectory: string): WorkspacePackage[] => {
+  const packageJsonPath = path.join(rootDirectory, "package.json");
+  if (!fs.existsSync(packageJsonPath)) return [];
+
+  const packageJson = readPackageJson(packageJsonPath);
+  const patterns = getWorkspacePatterns(rootDirectory, packageJson);
+  if (patterns.length === 0) return [];
+
+  const packages: WorkspacePackage[] = [];
+
+  for (const pattern of patterns) {
+    const directories = resolveWorkspaceDirectories(rootDirectory, pattern);
+    for (const workspaceDirectory of directories) {
+      const workspacePackageJson = readPackageJson(path.join(workspaceDirectory, "package.json"));
+
+      if (!hasReactDependency(workspacePackageJson)) continue;
+
+      const name = workspacePackageJson.name ?? path.basename(workspaceDirectory);
+      packages.push({ name, directory: workspaceDirectory });
+    }
+  }
+
+  return packages;
+};
+
+const hasCompilerPackage = (packageJson: PackageJson): boolean => {
+  const allDependencies = collectAllDependencies(packageJson);
+  return Object.keys(allDependencies).some((packageName) =>
+    REACT_COMPILER_PACKAGES.has(packageName),
+  );
+};
+
+const fileContainsPattern = (filePath: string, pattern: RegExp): boolean => {
+  if (!fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf-8");
+  return pattern.test(content);
+};
+
+const hasCompilerInConfigFiles = (directory: string, filenames: string[]): boolean =>
+  filenames.some((filename) =>
+    fileContainsPattern(path.join(directory, filename), REACT_COMPILER_CONFIG_PATTERN),
+  );
+
+const detectReactCompiler = (directory: string, packageJson: PackageJson): boolean => {
+  if (hasCompilerPackage(packageJson)) return true;
+
+  if (hasCompilerInConfigFiles(directory, NEXT_CONFIG_FILENAMES)) return true;
+  if (hasCompilerInConfigFiles(directory, BABEL_CONFIG_FILENAMES)) return true;
+  if (hasCompilerInConfigFiles(directory, VITE_CONFIG_FILENAMES)) return true;
+
+  let ancestorDirectory = path.dirname(directory);
+  while (ancestorDirectory !== path.dirname(ancestorDirectory)) {
+    const ancestorPackagePath = path.join(ancestorDirectory, "package.json");
+    if (fs.existsSync(ancestorPackagePath)) {
+      const ancestorPackageJson = readPackageJson(ancestorPackagePath);
+      if (hasCompilerPackage(ancestorPackageJson)) return true;
+    }
+    ancestorDirectory = path.dirname(ancestorDirectory);
+  }
+
+  return false;
+};
+
 export const discoverProject = (directory: string): ProjectInfo => {
   const packageJsonPath = path.join(directory, "package.json");
   if (!fs.existsSync(packageJsonPath)) {
     throw new Error(`No package.json found in ${directory}`);
   }
 
-  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as PackageJson;
+  const packageJson = readPackageJson(packageJsonPath);
   let { reactVersion, framework } = extractDependencyInfo(packageJson);
 
-  if (!reactVersion) {
+  if (!reactVersion || framework === "unknown") {
     const workspaceInfo = findReactInWorkspaces(directory, packageJson);
-    reactVersion = workspaceInfo.reactVersion;
-    framework = workspaceInfo.framework;
-  } else if (framework === "unknown") {
-    const workspaceInfo = findReactInWorkspaces(directory, packageJson);
-    if (workspaceInfo.framework !== "unknown") {
+    if (!reactVersion && workspaceInfo.reactVersion) {
+      reactVersion = workspaceInfo.reactVersion;
+    }
+    if (framework === "unknown" && workspaceInfo.framework !== "unknown") {
       framework = workspaceInfo.framework;
+    }
+  }
+
+  if (!reactVersion || framework === "unknown") {
+    const ancestorInfo = findDependencyInfoFromAncestors(directory);
+    if (!reactVersion) {
+      reactVersion = ancestorInfo.reactVersion;
+    }
+    if (framework === "unknown") {
+      framework = ancestorInfo.framework;
     }
   }
 
   const hasTypeScript = fs.existsSync(path.join(directory, "tsconfig.json"));
   const sourceFileCount = countSourceFiles(directory);
 
+  const hasReactCompiler = detectReactCompiler(directory, packageJson);
+
   return {
     rootDirectory: directory,
     reactVersion,
     framework,
     hasTypeScript,
+    hasReactCompiler,
     sourceFileCount,
   };
 };

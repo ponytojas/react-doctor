@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { defineConfig } from "tsup";
+import { defineConfig } from "tsdown";
 
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8")) as {
   version: string;
@@ -10,20 +10,22 @@ export default defineConfig([
     entry: {
       cli: "./src/cli.ts",
     },
-    format: ["cjs"],
-    external: ["oxlint"],
+    external: ["oxlint", "knip", "knip/session"],
     dts: true,
-    clean: true,
-    splitting: false,
-    sourcemap: false,
     target: "node18",
     platform: "node",
-    treeshake: true,
     env: {
       VERSION: process.env.VERSION ?? packageJson.version,
     },
-    banner: {
-      js: "#!/usr/bin/env node",
+    fixedExtension: false,
+    banner: "#!/usr/bin/env node",
+  },
+  {
+    entry: {
+      "react-doctor-plugin": "./src/plugin/index.ts",
     },
+    target: "node18",
+    platform: "node",
+    fixedExtension: false,
   },
 ]);
