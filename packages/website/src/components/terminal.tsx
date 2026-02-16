@@ -125,19 +125,31 @@ const FadeIn = ({ children }: { children: React.ReactNode }) => (
   <div className="animate-fade-in">{children}</div>
 );
 
-const getDoctorFace = (score: number): string => {
-  if (score >= SCORE_GOOD_THRESHOLD) return "◠‿◠";
-  if (score >= SCORE_OK_THRESHOLD) return "•_•";
-  return "x_x";
+const getDoctorFace = (score: number): [string, string] => {
+  if (score >= SCORE_GOOD_THRESHOLD) return ["◠ ◠", " ▽ "];
+  if (score >= SCORE_OK_THRESHOLD) return ["• •", " ─ "];
+  return ["x x", " ▽ "];
 };
 
-const DoctorBranding = ({ score }: { score: number }) => (
-  <div>
-    <span className={getScoreColor(score)}>{getDoctorFace(score)}</span>
-    {"  React Doctor "}
-    <span className="text-neutral-500">(www.react.doctor)</span>
-  </div>
-);
+const BOX_TOP = "┌─────┐";
+const BOX_BOTTOM = "└─────┘";
+
+const DoctorBranding = ({ score }: { score: number }) => {
+  const [eyes, mouth] = getDoctorFace(score);
+  const colorClass = getScoreColor(score);
+
+  return (
+    <div>
+      <pre className={`${colorClass} leading-tight`}>
+        {`  ${BOX_TOP}\n  │ ${eyes} │\n  │ ${mouth} │\n  ${BOX_BOTTOM}`}
+      </pre>
+      <div>
+        {"  React Doctor "}
+        <span className="text-neutral-500">(www.react.doctor)</span>
+      </div>
+    </div>
+  );
+};
 
 const ScoreBar = ({ score, barWidth }: { score: number; barWidth: number }) => {
   const filledCount = Math.round((score / PERFECT_SCORE) * barWidth);
