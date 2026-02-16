@@ -1,4 +1,8 @@
 import {
+  ANIMATION_CALLBACK_NAMES,
+  BLUR_VALUE_PATTERN,
+  EFFECT_HOOK_NAMES,
+  LARGE_BLUR_THRESHOLD_PX,
   LAYOUT_PROPERTIES,
   LOADING_STATE_PATTERN,
   MOTION_ANIMATE_PROPS,
@@ -8,8 +12,10 @@ import {
   getEffectCallback,
   isComponentAssignment,
   isHookCall,
+  isMemberProperty,
   isSimpleExpression,
   isUppercaseName,
+  walkAst,
 } from "../helpers.js";
 import type { EsTreeNode, Rule, RuleContext } from "../types.js";
 
@@ -65,6 +71,147 @@ export const noLayoutPropertyAnimation: Rule = {
             message: `Animating layout property "${propertyName}" triggers layout recalculation every frame — use transform/scale or the layout prop`,
           });
         }
+      }
+    },
+  }),
+};
+
+export const noTransitionAll: Rule = {
+  create: (context: RuleContext) => ({
+    JSXAttribute(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "style") return;
+      if (node.value?.type !== "JSXExpressionContainer") return;
+
+      const expression = node.value.expression;
+      if (expression?.type !== "ObjectExpression") return;
+
+      for (const property of expression.properties ?? []) {
+        if (property.type !== "Property") continue;
+        const key = property.key?.type === "Identifier" ? property.key.name : null;
+        if (key !== "transition") continue;
+
+        if (
+          property.value?.type === "Literal" &&
+          typeof property.value.value === "string" &&
+          property.value.value.startsWith("all")
+        ) {
+          context.report({
+            node: property,
+            message:
+              'transition: "all" animates every property including layout — list only the properties you animate',
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const noGlobalCssVariableAnimation: Rule = {
+  create: (context: RuleContext) => ({
+    CallExpression(node: EsTreeNode) {
+      if (node.callee?.type !== "Identifier") return;
+      if (!ANIMATION_CALLBACK_NAMES.has(node.callee.name)) return;
+
+      const callback = node.arguments?.[0];
+      if (!callback) return;
+
+      const calleeName = node.callee.name;
+      walkAst(callback, (child: EsTreeNode) => {
+        if (child.type !== "CallExpression") return;
+        if (!isMemberProperty(child.callee, "setProperty")) return;
+        if (child.arguments?.[0]?.type !== "Literal") return;
+
+        const variableName = child.arguments[0].value;
+        if (typeof variableName !== "string" || !variableName.startsWith("--")) return;
+
+        context.report({
+          node: child,
+          message: `CSS variable "${variableName}" updated in ${calleeName} — forces style recalculation on all inheriting elements every frame`,
+        });
+      });
+    },
+  }),
+};
+
+export const noLargeAnimatedBlur: Rule = {
+  create: (context: RuleContext) => ({
+    JSXAttribute(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier") return;
+      if (node.name.name !== "style" && !MOTION_ANIMATE_PROPS.has(node.name.name)) return;
+      if (node.value?.type !== "JSXExpressionContainer") return;
+
+      const expression = node.value.expression;
+      if (expression?.type !== "ObjectExpression") return;
+
+      for (const property of expression.properties ?? []) {
+        if (property.type !== "Property") continue;
+        const key = property.key?.type === "Identifier" ? property.key.name : null;
+        if (key !== "filter" && key !== "backdropFilter" && key !== "WebkitBackdropFilter")
+          continue;
+        if (property.value?.type !== "Literal" || typeof property.value.value !== "string")
+          continue;
+
+        const match = BLUR_VALUE_PATTERN.exec(property.value.value);
+        if (!match) continue;
+
+        const blurRadius = Number.parseFloat(match[1]);
+        if (blurRadius > LARGE_BLUR_THRESHOLD_PX) {
+          context.report({
+            node: property,
+            message: `blur(${blurRadius}px) is expensive — cost escalates with radius and layer size, can exceed GPU memory on mobile`,
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const noScaleFromZero: Rule = {
+  create: (context: RuleContext) => ({
+    JSXAttribute(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier") return;
+      if (node.name.name !== "initial" && node.name.name !== "exit") return;
+      if (node.value?.type !== "JSXExpressionContainer") return;
+
+      const expression = node.value.expression;
+      if (expression?.type !== "ObjectExpression") return;
+
+      for (const property of expression.properties ?? []) {
+        if (property.type !== "Property") continue;
+        const key = property.key?.type === "Identifier" ? property.key.name : null;
+        if (key !== "scale") continue;
+
+        if (property.value?.type === "Literal" && property.value.value === 0) {
+          context.report({
+            node: property,
+            message:
+              "scale: 0 makes elements appear from nowhere — use scale: 0.95 with opacity: 0 for natural entrance",
+          });
+        }
+      }
+    },
+  }),
+};
+
+export const noPermanentWillChange: Rule = {
+  create: (context: RuleContext) => ({
+    JSXAttribute(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "style") return;
+      if (node.value?.type !== "JSXExpressionContainer") return;
+
+      const expression = node.value.expression;
+      if (expression?.type !== "ObjectExpression") return;
+
+      for (const property of expression.properties ?? []) {
+        if (property.type !== "Property") continue;
+        const key = property.key?.type === "Identifier" ? property.key.name : null;
+        if (key !== "willChange") continue;
+
+        context.report({
+          node: property,
+          message:
+            "Permanent will-change wastes GPU memory — apply only during active animation and remove after",
+        });
       }
     },
   }),
@@ -157,7 +304,7 @@ export const renderingUsetransitionLoading: Rule = {
 export const renderingHydrationNoFlicker: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect") || node.arguments?.length < 2) return;
+      if (!isHookCall(node, EFFECT_HOOK_NAMES) || node.arguments?.length < 2) return;
 
       const depsNode = node.arguments[1];
       if (depsNode.type !== "ArrayExpression" || depsNode.elements?.length !== 0) return;

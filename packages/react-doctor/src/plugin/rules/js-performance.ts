@@ -1,7 +1,9 @@
 import {
+  CHAINABLE_ITERATION_METHODS,
   DEEP_NESTING_THRESHOLD,
   DUPLICATE_STORAGE_READ_THRESHOLD,
   SEQUENTIAL_AWAIT_THRESHOLD,
+  STORAGE_OBJECTS,
 } from "../constants.js";
 import { createLoopAwareVisitors, isMemberProperty, walkAst } from "../helpers.js";
 import type { EsTreeNode, Rule, RuleContext } from "../types.js";
@@ -13,7 +15,7 @@ export const jsCombineIterations: Rule = {
         return;
 
       const outerMethod = node.callee.property.name;
-      if (outerMethod !== "map" && outerMethod !== "filter") return;
+      if (!CHAINABLE_ITERATION_METHODS.has(outerMethod)) return;
 
       const innerCall = node.callee.object;
       if (
@@ -24,7 +26,7 @@ export const jsCombineIterations: Rule = {
         return;
 
       const innerMethod = innerCall.callee.property.name;
-      if (innerMethod !== "map" && innerMethod !== "filter") return;
+      if (!CHAINABLE_ITERATION_METHODS.has(innerMethod)) return;
 
       context.report({
         node,
@@ -165,7 +167,10 @@ export const jsCacheStorage: Rule = {
     return {
       CallExpression(node: EsTreeNode) {
         if (!isMemberProperty(node.callee, "getItem")) return;
-        if (node.callee.object?.type !== "Identifier" || node.callee.object.name !== "localStorage")
+        if (
+          node.callee.object?.type !== "Identifier" ||
+          !STORAGE_OBJECTS.has(node.callee.object.name)
+        )
           return;
         if (node.arguments?.[0]?.type !== "Literal") return;
 
@@ -174,9 +179,10 @@ export const jsCacheStorage: Rule = {
         storageReadCounts.set(storageKey, readCount);
 
         if (readCount === DUPLICATE_STORAGE_READ_THRESHOLD) {
+          const storageName = node.callee.object.name;
           context.report({
             node,
-            message: `localStorage.getItem("${storageKey}") called multiple times — cache the result in a variable`,
+            message: `${storageName}.getItem("${storageKey}") called multiple times — cache the result in a variable`,
           });
         }
       },

@@ -11,6 +11,9 @@ const NEXTJS_RULES: Record<string, string> = {
   "react-doctor/nextjs-no-client-fetch-for-server-data": "warn",
   "react-doctor/nextjs-missing-metadata": "warn",
   "react-doctor/nextjs-no-client-side-redirect": "warn",
+  "react-doctor/nextjs-no-css-link": "warn",
+  "react-doctor/nextjs-no-polyfill-script": "warn",
+  "react-doctor/nextjs-no-head-import": "error",
 };
 
 const REACT_COMPILER_RULES: Record<string, string> = {
@@ -59,13 +62,7 @@ export const createOxlintConfig = ({
     style: "off",
     nursery: "off",
   },
-  plugins: [
-    "react",
-    "jsx-a11y",
-    ...(hasReactCompiler ? [] : ["react-perf"]),
-    "import",
-    "typescript",
-  ],
+  plugins: ["react", "jsx-a11y", ...(hasReactCompiler ? [] : ["react-perf"])],
   jsPlugins: [
     ...(hasReactCompiler
       ? [{ name: "react-hooks-js", specifier: esmRequire.resolve("eslint-plugin-react-hooks") }]
@@ -103,17 +100,6 @@ export const createOxlintConfig = ({
     "jsx-a11y/no-distracting-elements": "error",
     "jsx-a11y/iframe-has-title": "warn",
 
-    "import/no-cycle": "warn",
-    "import/no-self-import": "error",
-    "import/no-duplicates": "warn",
-    "import/no-named-default": "warn",
-
-    "typescript/consistent-type-imports": "warn",
-    "typescript/no-explicit-any": "warn",
-    "typescript/no-non-null-assertion": "warn",
-    "typescript/prefer-ts-expect-error": "warn",
-    "typescript/no-unnecessary-type-assertion": "warn",
-
     ...(hasReactCompiler ? REACT_COMPILER_RULES : REACT_PERF_RULES),
 
     "react-doctor/no-derived-state-effect": "error",
@@ -138,7 +124,12 @@ export const createOxlintConfig = ({
     "react-doctor/rendering-usetransition-loading": "warn",
     "react-doctor/rendering-hydration-no-flicker": "warn",
 
-    "react-doctor/no-eval": "error",
+    "react-doctor/no-transition-all": "warn",
+    "react-doctor/no-global-css-variable-animation": "error",
+    "react-doctor/no-large-animated-blur": "warn",
+    "react-doctor/no-scale-from-zero": "warn",
+    "react-doctor/no-permanent-will-change": "warn",
+
     "react-doctor/no-secrets-in-client-code": "error",
 
     "react-doctor/no-barrel-import": "warn",
@@ -157,15 +148,6 @@ export const createOxlintConfig = ({
 
     "react-doctor/client-passive-event-listeners": "warn",
 
-    "react-doctor/js-combine-iterations": "warn",
-    "react-doctor/js-tosorted-immutable": "warn",
-    "react-doctor/js-hoist-regexp": "warn",
-    "react-doctor/js-min-max-loop": "warn",
-    "react-doctor/js-set-map-lookups": "warn",
-    "react-doctor/js-batch-dom-css": "warn",
-    "react-doctor/js-index-maps": "warn",
-    "react-doctor/js-cache-storage": "warn",
-    "react-doctor/js-early-exit": "warn",
     "react-doctor/async-parallel": "warn",
     ...(framework === "nextjs" ? NEXTJS_RULES : {}),
   },

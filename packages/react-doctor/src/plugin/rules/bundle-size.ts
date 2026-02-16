@@ -85,12 +85,10 @@ export const noUndeferredThirdParty: Rule = {
   create: (context: RuleContext) => ({
     JSXOpeningElement(node: EsTreeNode) {
       if (node.name?.type !== "JSXIdentifier" || node.name.name !== "script") return;
-      if (!findJsxAttribute(node.attributes, "src")) return;
+      const attributes = node.attributes ?? [];
+      if (!findJsxAttribute(attributes, "src")) return;
 
-      if (
-        !hasJsxAttribute(node.attributes, "defer") &&
-        !hasJsxAttribute(node.attributes, "async")
-      ) {
+      if (!hasJsxAttribute(attributes, "defer") && !hasJsxAttribute(attributes, "async")) {
         context.report({
           node,
           message:

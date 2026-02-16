@@ -1,4 +1,9 @@
-import { CASCADING_SET_STATE_THRESHOLD, RELATED_USE_STATE_THRESHOLD } from "../constants.js";
+import {
+  CASCADING_SET_STATE_THRESHOLD,
+  EFFECT_HOOK_NAMES,
+  HOOKS_WITH_DEPS,
+  RELATED_USE_STATE_THRESHOLD,
+} from "../constants.js";
 import {
   containsFetchCall,
   countSetStateCalls,
@@ -16,7 +21,7 @@ import type { EsTreeNode, Rule, RuleContext } from "../types.js";
 export const noDerivedStateEffect: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect") || node.arguments.length < 2) return;
+      if (!isHookCall(node, EFFECT_HOOK_NAMES) || node.arguments.length < 2) return;
 
       const callback = getEffectCallback(node);
       if (!callback) return;
@@ -76,7 +81,7 @@ export const noDerivedStateEffect: Rule = {
 export const noFetchInEffect: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect")) return;
+      if (!isHookCall(node, EFFECT_HOOK_NAMES)) return;
       const callback = getEffectCallback(node);
       if (!callback) return;
 
@@ -94,7 +99,7 @@ export const noFetchInEffect: Rule = {
 export const noCascadingSetState: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect")) return;
+      if (!isHookCall(node, EFFECT_HOOK_NAMES)) return;
       const callback = getEffectCallback(node);
       if (!callback) return;
 
@@ -112,7 +117,7 @@ export const noCascadingSetState: Rule = {
 export const noEffectEventHandler: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect") || node.arguments.length < 2) return;
+      if (!isHookCall(node, EFFECT_HOOK_NAMES) || node.arguments.length < 2) return;
 
       const callback = getEffectCallback(node);
       if (!callback) return;
@@ -254,7 +259,7 @@ export const rerenderFunctionalSetstate: Rule = {
 export const rerenderDependencies: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect") || node.arguments.length < 2) return;
+      if (!isHookCall(node, HOOKS_WITH_DEPS) || node.arguments.length < 2) return;
       const depsNode = node.arguments[1];
       if (depsNode.type !== "ArrayExpression") return;
 

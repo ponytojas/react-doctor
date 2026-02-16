@@ -120,3 +120,27 @@ export const PAGE_OR_LAYOUT_FILE_PATTERN = /\/(page|layout)\.(tsx?|jsx?)$/;
 export const PAGES_DIRECTORY_PATTERN = /\/pages\//;
 export const SERVER_ACTION_FILE_PATTERN = /actions?\.(tsx?|jsx?)$/;
 export const SERVER_ACTION_DIRECTORY_PATTERN = /\/actions\//;
+
+export const NEXTJS_NAVIGATION_FUNCTIONS = new Set([
+  "redirect",
+  "permanentRedirect",
+  "notFound",
+  "forbidden",
+  "unauthorized",
+]);
+
+export const GOOGLE_FONTS_PATTERN = /fonts\.googleapis\.com/;
+
+export const POLYFILL_SCRIPT_PATTERN = /polyfill\.io|polyfill\.min\.js|cdn\.polyfill/;
+
+export const APP_DIRECTORY_PATTERN = /\/app\//;
+
+export const EFFECT_HOOK_NAMES = new Set(["useEffect", "useLayoutEffect"]);
+export const HOOKS_WITH_DEPS = new Set(["useEffect", "useLayoutEffect", "useMemo", "useCallback"]);
+export const CHAINABLE_ITERATION_METHODS = new Set(["map", "filter", "forEach", "flatMap"]);
+export const STORAGE_OBJECTS = new Set(["localStorage", "sessionStorage"]);
+
+export const LARGE_BLUR_THRESHOLD_PX = 10;
+export const BLUR_VALUE_PATTERN = /blur\((\d+(?:\.\d+)?)px\)/;
+export const ANIMATION_CALLBACK_NAMES = new Set(["requestAnimationFrame", "setInterval"]);
+export const MOTION_LIBRARY_PACKAGES = new Set(["framer-motion", "motion"]);

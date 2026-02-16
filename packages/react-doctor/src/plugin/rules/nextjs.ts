@@ -1,15 +1,24 @@
 import {
+  APP_DIRECTORY_PATTERN,
+  EFFECT_HOOK_NAMES,
+  GOOGLE_FONTS_PATTERN,
+  NEXTJS_NAVIGATION_FUNCTIONS,
   PAGE_FILE_PATTERN,
   PAGE_OR_LAYOUT_FILE_PATTERN,
   PAGES_DIRECTORY_PATTERN,
+  POLYFILL_SCRIPT_PATTERN,
 } from "../constants.js";
 import {
   containsFetchCall,
+  findJsxAttribute,
   getEffectCallback,
   hasDirective,
+  hasJsxAttribute,
   isComponentAssignment,
   isHookCall,
+  isMemberProperty,
   isUppercaseName,
+  walkAst,
 } from "../helpers.js";
 import type { EsTreeNode, Rule, RuleContext } from "../types.js";
 
@@ -60,12 +69,7 @@ export const nextjsNoAElement: Rule = {
     JSXOpeningElement(node: EsTreeNode) {
       if (node.name?.type !== "JSXIdentifier" || node.name.name !== "a") return;
 
-      const hrefAttribute = node.attributes?.find(
-        (attribute: EsTreeNode) =>
-          attribute.type === "JSXAttribute" &&
-          attribute.name?.type === "JSXIdentifier" &&
-          attribute.name.name === "href",
-      );
+      const hrefAttribute = findJsxAttribute(node.attributes ?? [], "href");
       if (!hrefAttribute?.value) return;
 
       const hrefValue =
@@ -109,7 +113,7 @@ export const nextjsNoClientFetchForServerData: Rule = {
         fileHasUseClient = hasDirective(programNode, "use client");
       },
       CallExpression(node: EsTreeNode) {
-        if (!fileHasUseClient || !isHookCall(node, "useEffect")) return;
+        if (!fileHasUseClient || !isHookCall(node, EFFECT_HOOK_NAMES)) return;
 
         const callback = getEffectCallback(node);
         if (!callback || !containsFetchCall(callback)) return;
@@ -162,36 +166,200 @@ export const nextjsMissingMetadata: Rule = {
   }),
 };
 
+const isClientSideRedirect = (node: EsTreeNode): boolean => {
+  if (node.type === "CallExpression" && node.callee?.type === "MemberExpression") {
+    const objectName = node.callee.object?.type === "Identifier" ? node.callee.object.name : null;
+    if (
+      objectName === "router" &&
+      (isMemberProperty(node.callee, "push") || isMemberProperty(node.callee, "replace"))
+    )
+      return true;
+  }
+
+  if (node.type === "AssignmentExpression" && node.left?.type === "MemberExpression") {
+    const objectName = node.left.object?.type === "Identifier" ? node.left.object.name : null;
+    const propertyName = node.left.property?.type === "Identifier" ? node.left.property.name : null;
+    if (objectName === "window" && propertyName === "location") return true;
+    if (objectName === "location" && propertyName === "href") return true;
+  }
+
+  return false;
+};
+
 export const nextjsNoClientSideRedirect: Rule = {
   create: (context: RuleContext) => ({
     CallExpression(node: EsTreeNode) {
-      if (!isHookCall(node, "useEffect")) return;
-
+      if (!isHookCall(node, EFFECT_HOOK_NAMES)) return;
       const callback = getEffectCallback(node);
       if (!callback) return;
 
-      const bodyStatements =
-        callback.body?.type === "BlockStatement" ? (callback.body.body ?? []) : [callback.body];
-
-      for (const statement of bodyStatements) {
-        if (statement?.type !== "ExpressionStatement") continue;
-        const expression = statement.expression;
-        if (
-          expression?.type === "CallExpression" &&
-          expression.callee?.type === "MemberExpression" &&
-          expression.callee.object?.type === "Identifier" &&
-          expression.callee.object.name === "router" &&
-          expression.callee.property?.type === "Identifier" &&
-          (expression.callee.property.name === "push" ||
-            expression.callee.property.name === "replace")
-        ) {
+      walkAst(callback, (child: EsTreeNode) => {
+        if (isClientSideRedirect(child)) {
           context.report({
-            node: expression,
+            node: child,
             message:
               "Client-side redirect in useEffect — use redirect() in a server component or middleware instead",
           });
         }
+      });
+    },
+  }),
+};
+
+export const nextjsNoRedirectInTryCatch: Rule = {
+  create: (context: RuleContext) => {
+    let tryCatchDepth = 0;
+
+    return {
+      TryStatement() {
+        tryCatchDepth++;
+      },
+      "TryStatement:exit"() {
+        tryCatchDepth--;
+      },
+      CallExpression(node: EsTreeNode) {
+        if (tryCatchDepth === 0) return;
+        if (node.callee?.type !== "Identifier") return;
+        if (!NEXTJS_NAVIGATION_FUNCTIONS.has(node.callee.name)) return;
+
+        context.report({
+          node,
+          message: `${node.callee.name}() inside try-catch — this throws a special error Next.js handles internally. Move it outside the try block or use unstable_rethrow() in the catch`,
+        });
+      },
+    };
+  },
+};
+
+export const nextjsImageMissingSizes: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "Image") return;
+      const attributes = node.attributes ?? [];
+      if (!hasJsxAttribute(attributes, "fill")) return;
+      if (hasJsxAttribute(attributes, "sizes")) return;
+
+      context.report({
+        node,
+        message:
+          "next/image with fill but no sizes — the browser downloads the largest image. Add a sizes attribute for responsive behavior",
+      });
+    },
+  }),
+};
+
+export const nextjsNoNativeScript: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "script") return;
+
+      context.report({
+        node,
+        message:
+          "Use next/script <Script> instead of <script> — provides loading strategy optimization and deferred loading",
+      });
+    },
+  }),
+};
+
+export const nextjsInlineScriptMissingId: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "Script") return;
+      const attributes = node.attributes ?? [];
+
+      if (hasJsxAttribute(attributes, "src")) return;
+      if (hasJsxAttribute(attributes, "id")) return;
+
+      context.report({
+        node,
+        message:
+          "Inline <Script> without id — Next.js requires an id attribute to track inline scripts",
+      });
+    },
+  }),
+};
+
+export const nextjsNoFontLink: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "link") return;
+      const attributes = node.attributes ?? [];
+
+      const hrefAttribute = findJsxAttribute(attributes, "href");
+      if (!hrefAttribute?.value) return;
+
+      const hrefValue = hrefAttribute.value.type === "Literal" ? hrefAttribute.value.value : null;
+
+      if (typeof hrefValue === "string" && GOOGLE_FONTS_PATTERN.test(hrefValue)) {
+        context.report({
+          node,
+          message:
+            "Loading Google Fonts via <link> — use next/font instead for self-hosting, zero layout shift, and no render-blocking requests",
+        });
       }
+    },
+  }),
+};
+
+export const nextjsNoCssLink: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier" || node.name.name !== "link") return;
+      const attributes = node.attributes ?? [];
+
+      const relAttribute = findJsxAttribute(attributes, "rel");
+      if (!relAttribute?.value) return;
+      const relValue = relAttribute.value.type === "Literal" ? relAttribute.value.value : null;
+      if (relValue !== "stylesheet") return;
+
+      const hrefAttribute = findJsxAttribute(attributes, "href");
+      if (!hrefAttribute?.value) return;
+      const hrefValue = hrefAttribute.value.type === "Literal" ? hrefAttribute.value.value : null;
+      if (typeof hrefValue === "string" && GOOGLE_FONTS_PATTERN.test(hrefValue)) return;
+
+      context.report({
+        node,
+        message: '<link rel="stylesheet"> tag — import CSS directly for bundling and optimization',
+      });
+    },
+  }),
+};
+
+export const nextjsNoPolyfillScript: Rule = {
+  create: (context: RuleContext) => ({
+    JSXOpeningElement(node: EsTreeNode) {
+      if (node.name?.type !== "JSXIdentifier") return;
+      if (node.name.name !== "script" && node.name.name !== "Script") return;
+
+      const srcAttribute = findJsxAttribute(node.attributes ?? [], "src");
+      if (!srcAttribute?.value) return;
+
+      const srcValue = srcAttribute.value.type === "Literal" ? srcAttribute.value.value : null;
+
+      if (typeof srcValue === "string" && POLYFILL_SCRIPT_PATTERN.test(srcValue)) {
+        context.report({
+          node,
+          message:
+            "Polyfill CDN script — Next.js includes polyfills for fetch, Promise, Object.assign, and 50+ others automatically",
+        });
+      }
+    },
+  }),
+};
+
+export const nextjsNoHeadImport: Rule = {
+  create: (context: RuleContext) => ({
+    ImportDeclaration(node: EsTreeNode) {
+      if (node.source?.value !== "next/head") return;
+
+      const filename = context.getFilename?.() ?? "";
+      if (!APP_DIRECTORY_PATTERN.test(filename)) return;
+
+      context.report({
+        node,
+        message: "next/head is not supported in the App Router — use the Metadata API instead",
+      });
     },
   }),
 };

@@ -29,9 +29,6 @@ export const isSetterIdentifier = (name: string): boolean => SETTER_PATTERN.test
 
 export const isUppercaseName = (name: string): boolean => UPPERCASE_PATTERN.test(name);
 
-export const isIdentifierWithName = (node: EsTreeNode, name: string): boolean =>
-  node.type === "Identifier" && node.name === name;
-
 export const isMemberProperty = (node: EsTreeNode, propertyName: string): boolean =>
   node.type === "MemberExpression" &&
   node.property?.type === "Identifier" &&
@@ -101,10 +98,10 @@ export const isComponentAssignment = (node: EsTreeNode): boolean =>
   Boolean(node.init) &&
   (node.init.type === "ArrowFunctionExpression" || node.init.type === "FunctionExpression");
 
-export const isHookCall = (node: EsTreeNode, hookName: string): boolean =>
+export const isHookCall = (node: EsTreeNode, hookName: string | Set<string>): boolean =>
   node.type === "CallExpression" &&
   node.callee?.type === "Identifier" &&
-  node.callee.name === hookName;
+  (typeof hookName === "string" ? node.callee.name === hookName : hookName.has(node.callee.name));
 
 export const hasDirective = (programNode: EsTreeNode, directive: string): boolean =>
   Boolean(
@@ -157,12 +154,6 @@ export const findJsxAttribute = (
 
 export const hasJsxAttribute = (attributes: EsTreeNode[], attributeName: string): boolean =>
   Boolean(findJsxAttribute(attributes, attributeName));
-
-export const getComponentParams = (node: EsTreeNode): EsTreeNode[] => {
-  if (node.type === "FunctionDeclaration") return node.params ?? [];
-  if (isComponentAssignment(node)) return node.init?.params ?? [];
-  return [];
-};
 
 export const createLoopAwareVisitors = (
   innerVisitors: Record<string, (node: EsTreeNode) => void>,

@@ -32,15 +32,28 @@ import {
 } from "./rules/js-performance.js";
 import {
   nextjsAsyncClientComponent,
+  nextjsImageMissingSizes,
+  nextjsInlineScriptMissingId,
   nextjsMissingMetadata,
   nextjsNoAElement,
   nextjsNoClientFetchForServerData,
   nextjsNoClientSideRedirect,
+  nextjsNoCssLink,
+  nextjsNoFontLink,
+  nextjsNoHeadImport,
   nextjsNoImgElement,
+  nextjsNoNativeScript,
+  nextjsNoPolyfillScript,
+  nextjsNoRedirectInTryCatch,
   nextjsNoUseSearchParamsWithoutSuspense,
 } from "./rules/nextjs.js";
 import {
+  noGlobalCssVariableAnimation,
+  noLargeAnimatedBlur,
   noLayoutPropertyAnimation,
+  noPermanentWillChange,
+  noScaleFromZero,
+  noTransitionAll,
   noUsememoSimpleExpression,
   renderingAnimateSvgWrapper,
   renderingHydrationNoFlicker,
@@ -87,6 +100,12 @@ const plugin: RulePlugin = {
     "rendering-usetransition-loading": renderingUsetransitionLoading,
     "rendering-hydration-no-flicker": renderingHydrationNoFlicker,
 
+    "no-transition-all": noTransitionAll,
+    "no-global-css-variable-animation": noGlobalCssVariableAnimation,
+    "no-large-animated-blur": noLargeAnimatedBlur,
+    "no-scale-from-zero": noScaleFromZero,
+    "no-permanent-will-change": noPermanentWillChange,
+
     "no-eval": noEval,
     "no-secrets-in-client-code": noSecretsInClientCode,
 
@@ -108,6 +127,14 @@ const plugin: RulePlugin = {
     "nextjs-no-client-fetch-for-server-data": nextjsNoClientFetchForServerData,
     "nextjs-missing-metadata": nextjsMissingMetadata,
     "nextjs-no-client-side-redirect": nextjsNoClientSideRedirect,
+    "nextjs-no-redirect-in-try-catch": nextjsNoRedirectInTryCatch,
+    "nextjs-image-missing-sizes": nextjsImageMissingSizes,
+    "nextjs-no-native-script": nextjsNoNativeScript,
+    "nextjs-inline-script-missing-id": nextjsInlineScriptMissingId,
+    "nextjs-no-font-link": nextjsNoFontLink,
+    "nextjs-no-css-link": nextjsNoCssLink,
+    "nextjs-no-polyfill-script": nextjsNoPolyfillScript,
+    "nextjs-no-head-import": nextjsNoHeadImport,
 
     "server-auth-actions": serverAuthActions,
     "server-after-nonblocking": serverAfterNonblocking,

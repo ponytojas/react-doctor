@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";
@@ -9,6 +9,7 @@ import { discoverProject, formatFrameworkName } from "./utils/discover-project.j
 import { groupBy } from "./utils/group-by.js";
 import { highlighter } from "./utils/highlighter.js";
 import { logger } from "./utils/logger.js";
+import { checkReducedMotion } from "./utils/check-reduced-motion.js";
 import { runKnip } from "./utils/run-knip.js";
 import { runOxlint } from "./utils/run-oxlint.js";
 import { spinner } from "./utils/spinner.js";
@@ -78,10 +79,55 @@ const formatElapsedTime = (elapsedMilliseconds: number): string => {
   return `${(elapsedMilliseconds / 1000).toFixed(1)}s`;
 };
 
-const writeDiagnosticsFile = (diagnostics: Diagnostic[]): string => {
-  const outputPath = join(tmpdir(), `react-doctor-${randomUUID()}.json`);
-  writeFileSync(outputPath, JSON.stringify(diagnostics, null, 2));
-  return outputPath;
+const formatRuleSummary = (ruleKey: string, ruleDiagnostics: Diagnostic[]): string => {
+  const firstDiagnostic = ruleDiagnostics[0];
+  const fileLines = new Map<string, number[]>();
+  for (const diagnostic of ruleDiagnostics) {
+    const lines = fileLines.get(diagnostic.filePath) ?? [];
+    if (diagnostic.line > 0) lines.push(diagnostic.line);
+    fileLines.set(diagnostic.filePath, lines);
+  }
+
+  const sections = [
+    `Rule: ${ruleKey}`,
+    `Severity: ${firstDiagnostic.severity}`,
+    `Category: ${firstDiagnostic.category}`,
+    `Count: ${ruleDiagnostics.length}`,
+    "",
+    firstDiagnostic.message,
+  ];
+
+  if (firstDiagnostic.help) {
+    sections.push("", `Suggestion: ${firstDiagnostic.help}`);
+  }
+
+  sections.push("", "Files:");
+  for (const [filePath, lines] of fileLines) {
+    const lineLabel = lines.length > 0 ? `: ${lines.join(", ")}` : "";
+    sections.push(`  ${filePath}${lineLabel}`);
+  }
+
+  return sections.join("\n") + "\n";
+};
+
+const writeDiagnosticsDirectory = (diagnostics: Diagnostic[]): string => {
+  const outputDirectory = join(tmpdir(), `react-doctor-${randomUUID()}`);
+  mkdirSync(outputDirectory);
+
+  const ruleGroups = groupBy(
+    diagnostics,
+    (diagnostic) => `${diagnostic.plugin}/${diagnostic.rule}`,
+  );
+  const sortedRuleGroups = sortBySeverity([...ruleGroups.entries()]);
+
+  for (const [ruleKey, ruleDiagnostics] of sortedRuleGroups) {
+    const fileName = ruleKey.replace(/\//g, "--") + ".txt";
+    writeFileSync(join(outputDirectory, fileName), formatRuleSummary(ruleKey, ruleDiagnostics));
+  }
+
+  writeFileSync(join(outputDirectory, "diagnostics.json"), JSON.stringify(diagnostics, null, 2));
+
+  return outputDirectory;
 };
 
 const printSummary = (diagnostics: Diagnostic[], elapsedMilliseconds: number): void => {
@@ -107,9 +153,9 @@ const printSummary = (diagnostics: Diagnostic[], elapsedMilliseconds: number): v
 
   logger.log(parts.join("  "));
 
-  const diagnosticsFilePath = writeDiagnosticsFile(diagnostics);
+  const diagnosticsDirectory = writeDiagnosticsDirectory(diagnostics);
   logger.break();
-  logger.dim(`Full diagnostics written to ${diagnosticsFilePath}`);
+  logger.dim(`Full diagnostics written to ${diagnosticsDirectory}`);
 };
 
 export const scan = async (directory: string, options: ScanOptions): Promise<void> => {
@@ -159,6 +205,8 @@ export const scan = async (directory: string, options: ScanOptions): Promise<voi
     diagnostics.push(...(await runKnip(directory)));
     deadCodeSpinner.succeed("Detecting dead code.");
   }
+
+  diagnostics.push(...checkReducedMotion(directory));
 
   const elapsedMilliseconds = performance.now() - startTime;
 
