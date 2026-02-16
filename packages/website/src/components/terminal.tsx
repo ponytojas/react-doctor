@@ -199,13 +199,12 @@ const CopyCommand = () => {
     : "shrink-0 text-white/50 transition-colors group-hover:text-white";
 
   return (
-    <button
-      onClick={handleCopy}
-      className="group flex items-center gap-4 border border-white/20 px-3 py-1.5 transition-colors hover:bg-white/5"
-    >
-      <span className="whitespace-nowrap text-white">{COMMAND}</span>
-      <IconComponent size={16} className={iconClass} />
-    </button>
+    <div className="group flex items-center gap-4 border border-white/20 px-3 py-1.5 transition-colors hover:bg-white/5">
+      <span className="select-all whitespace-nowrap text-white">{COMMAND}</span>
+      <button onClick={handleCopy}>
+        <IconComponent size={16} className={iconClass} />
+      </button>
+    </div>
   );
 };
 
