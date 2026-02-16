@@ -202,8 +202,12 @@ export const scan = async (directory: string, options: ScanOptions): Promise<voi
 
   if (options.deadCode) {
     const deadCodeSpinner = spinner("Detecting dead code...").start();
-    diagnostics.push(...(await runKnip(directory)));
-    deadCodeSpinner.succeed("Detecting dead code.");
+    try {
+      diagnostics.push(...(await runKnip(directory)));
+      deadCodeSpinner.succeed("Detecting dead code.");
+    } catch {
+      deadCodeSpinner.fail("Dead code detection failed (non-fatal, skipping).");
+    }
   }
 
   diagnostics.push(...checkReducedMotion(directory));
