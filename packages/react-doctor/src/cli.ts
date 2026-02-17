@@ -98,12 +98,7 @@ ${highlighter.dim("Learn more:")}
 const AMI_INSTALL_URL = "https://ami.dev/install.sh";
 const AMI_FIX_PROMPT =
   "Run npx -y react-doctor@latest . --verbose, read every diagnostic, then fix all issues one by one. After fixing, re-run react-doctor to verify the score improved.";
-
-const buildAmiDeeplink = (projectDirectory: string): string => {
-  const encodedDirectory = encodeURIComponent(projectDirectory);
-  const encodedPrompt = encodeURIComponent(AMI_FIX_PROMPT);
-  return `ami://new-chat?cwd=${encodedDirectory}&prompt=${encodedPrompt}&mode=agent`;
-};
+const OPEN_PROJECT_DELAY_S = 2;
 
 const isAmiInstalled = (): boolean => {
   try {
@@ -135,15 +130,22 @@ const openAmiToFix = (directory: string): void => {
 
   logger.log("Opening Ami to fix react-doctor issues...");
 
-  const deeplink = buildAmiDeeplink(resolvedDirectory);
+  const encodedDirectory = encodeURIComponent(resolvedDirectory);
+  const encodedPrompt = encodeURIComponent(AMI_FIX_PROMPT);
+  const openProjectDeeplink = `ami://open-project?cwd=${encodedDirectory}`;
+  const newChatDeeplink = `ami://new-chat?prompt=${encodedPrompt}&mode=agent&send=true`;
 
   try {
-    execSync(`open "${deeplink}"`, { stdio: "ignore" });
+    execSync(
+      `open "${openProjectDeeplink}" && sleep ${OPEN_PROJECT_DELAY_S} && open "${newChatDeeplink}"`,
+      { stdio: "ignore" },
+    );
     logger.success("Opened Ami with react-doctor fix prompt.");
   } catch {
     logger.break();
-    logger.dim("Could not open Ami automatically. Open this URL manually:");
-    logger.info(deeplink);
+    logger.dim("Could not open Ami automatically. Open these URLs manually:");
+    logger.info(openProjectDeeplink);
+    logger.info(newChatDeeplink);
   }
 };
 
