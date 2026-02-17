@@ -2,6 +2,7 @@ export type Framework = "nextjs" | "vite" | "cra" | "remix" | "gatsby" | "unknow
 
 export interface ProjectInfo {
   rootDirectory: string;
+  projectName: string;
   reactVersion: string | null;
   framework: Framework;
   hasTypeScript: boolean;

@@ -27,6 +27,7 @@ const getDoctorFace = (score: number): [string, string] => {
 export const GET = (request: Request): ImageResponse => {
   const { searchParams } = new URL(request.url);
 
+  const projectName = searchParams.get("p") ?? null;
   const score = Math.max(0, Math.min(PERFECT_SCORE, Number(searchParams.get("s")) || 0));
   const errorCount = Math.max(0, Number(searchParams.get("e")) || 0);
   const warningCount = Math.max(0, Number(searchParams.get("w")) || 0);
@@ -69,6 +70,18 @@ export const GET = (request: Request): ImageResponse => {
           <span style={{ fontSize: "28px", color: "#d4d4d4" }}>React Doctor</span>
           <span style={{ fontSize: "18px", color: "#525252" }}>www.react.doctor</span>
         </div>
+        {projectName && (
+          <div
+            style={{
+              display: "flex",
+              marginLeft: "auto",
+              fontSize: "24px",
+              color: "#a3a3a3",
+            }}
+          >
+            {projectName}
+          </div>
+        )}
       </div>
 
       <div style={{ display: "flex", alignItems: "baseline", gap: "16px", marginTop: "48px" }}>

@@ -14,6 +14,8 @@ export const SCORE_OK_THRESHOLD = 50;
 
 export const SCORE_BAR_WIDTH_CHARS = 50;
 
+export const SEPARATOR_LENGTH_CHARS = 40;
+
 export const SUMMARY_BOX_HORIZONTAL_PADDING_CHARS = 1;
 
 export const SUMMARY_BOX_OUTER_INDENT_CHARS = 2;

@@ -343,6 +343,7 @@ export const discoverProject = (directory: string): ProjectInfo => {
     }
   }
 
+  const projectName = packageJson.name ?? path.basename(directory);
   const hasTypeScript = fs.existsSync(path.join(directory, "tsconfig.json"));
   const sourceFileCount = countSourceFiles(directory);
 
@@ -350,6 +351,7 @@ export const discoverProject = (directory: string): ProjectInfo => {
 
   return {
     rootDirectory: directory,
+    projectName,
     reactVersion,
     framework,
     hasTypeScript,
