@@ -54,6 +54,7 @@ const program = new Command()
         scoreOnly: isScoreOnly,
       };
 
+<<<<<<< Updated upstream
       const shouldSkipPrompts =
         flags.yes ||
         Boolean(process.env.CI) ||
@@ -65,6 +66,19 @@ const program = new Command()
         Boolean(process.env.AMP_HOME) ||
         Boolean(process.env.AMI) ||
         !process.stdin.isTTY;
+=======
+      const isAutomatedEnvironment = [
+        process.env.CI,
+        process.env.CLAUDECODE,
+        process.env.CURSOR_TRACE_ID,
+        process.env.CURSOR_AGENT,
+        process.env.CODEX_CI,
+        process.env.OPENCODE,
+        process.env.AMP_HOME,
+        process.env.AMI,
+      ].some(Boolean);
+      const shouldSkipPrompts = flags.yes || isAutomatedEnvironment || !process.stdin.isTTY;
+>>>>>>> Stashed changes
       const projectDirectories = await selectProjects(
         resolvedDirectory,
         flags.project,
@@ -185,7 +199,7 @@ const fixCommand = new Command("fix")
   .action(fixAction);
 
 const installAmiCommand = new Command("install-ami")
-  .description("Open Ami to auto-fix react-doctor issues")
+  .description("Install Ami and open it to auto-fix issues")
   .argument("[directory]", "project directory", ".")
   .action(fixAction);
 

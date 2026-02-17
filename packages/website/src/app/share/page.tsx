@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
+import AnimatedScore from "./animated-score";
 
 const PERFECT_SCORE = 100;
 const SCORE_GOOD_THRESHOLD = 75;
 const SCORE_OK_THRESHOLD = 50;
-const SCORE_BAR_WIDTH = 30;
 const COMMAND = "npx -y react-doctor@latest .";
 const SHARE_BASE_URL = "https://www.react.doctor/share";
 const X_ICON_PATH =
@@ -49,19 +49,6 @@ const DoctorFace = ({ score }: { score: number }) => {
   );
 };
 
-const ScoreBar = ({ score }: { score: number }) => {
-  const filledCount = Math.round((score / PERFECT_SCORE) * SCORE_BAR_WIDTH);
-  const emptyCount = SCORE_BAR_WIDTH - filledCount;
-  const colorClass = getScoreColorClass(score);
-
-  return (
-    <span>
-      <span className={colorClass}>{"\u2588".repeat(filledCount)}</span>
-      <span className="text-neutral-600">{"\u2591".repeat(emptyCount)}</span>
-    </span>
-  );
-};
-
 export const generateMetadata = async ({
   searchParams,
 }: {
@@ -104,7 +91,6 @@ const SharePage = async ({ searchParams }: { searchParams: Promise<ShareSearchPa
   const errorCount = Math.max(0, Number(resolvedParams.e) || 0);
   const warningCount = Math.max(0, Number(resolvedParams.w) || 0);
   const fileCount = Math.max(0, Number(resolvedParams.f) || 0);
-  const colorClass = getScoreColorClass(score);
   const label = getScoreLabel(score);
 
   const shareSearchParams = new URLSearchParams();
@@ -127,14 +113,7 @@ const SharePage = async ({ searchParams }: { searchParams: Promise<ShareSearchPa
         </div>
       </div>
 
-      <div className="mb-2 pl-2">
-        <span className={colorClass}>{score}</span>
-        {` / ${PERFECT_SCORE}  `}
-        <span className={colorClass}>{getScoreLabel(score)}</span>
-      </div>
-      <div className="mb-6 pl-2">
-        <ScoreBar score={score} />
-      </div>
+      <AnimatedScore targetScore={score} />
 
       {(errorCount > 0 || warningCount > 0 || fileCount > 0) && (
         <div className="mb-8 pl-2">
