@@ -47,10 +47,11 @@ export const maybePromptSkillInstall = async (shouldSkipPrompts: boolean): Promi
   if (shouldSkipPrompts) return;
 
   logger.break();
-  logger.log(
-    `${highlighter.info("💡")} Install the ${highlighter.info("react-doctor")} skill for your coding agent?`,
+  logger.log(`${highlighter.info("💡")} Have your coding agent fix these issues automatically?`);
+  logger.dim(
+    `   Install the ${highlighter.info("react-doctor")} skill to teach Cursor, Claude Code, Copilot,`,
   );
-  logger.dim("   Adds React best practices to Cursor, Claude Code, Copilot, and more.");
+  logger.dim("   Ami, and other AI agents how to diagnose and fix these React issues.");
   logger.break();
 
   const { shouldInstall } = await prompts({
