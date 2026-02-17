@@ -21,7 +21,7 @@ export const selectProjects = async (
 
   if (skipPrompts) {
     printDiscoveredProjects(packages);
-    process.exit(0);
+    return packages.map((workspacePackage) => workspacePackage.directory);
   }
 
   return promptProjectSelection(packages, rootDirectory);
