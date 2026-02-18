@@ -79,6 +79,7 @@ const countSourceFiles = (rootDirectory: string): number => {
 };
 
 const collectAllDependencies = (packageJson: PackageJson): Record<string, string> => ({
+  ...packageJson.peerDependencies,
   ...packageJson.dependencies,
   ...packageJson.devDependencies,
 });

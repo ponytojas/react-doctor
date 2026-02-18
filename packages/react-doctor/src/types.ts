@@ -57,6 +57,7 @@ export interface PackageJson {
   name?: string;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
+  peerDependencies?: Record<string, string>;
   workspaces?: string[] | { packages: string[] };
 }
 
@@ -83,11 +84,18 @@ export interface ScoreResult {
 }
 
 export interface ScanOptions {
-  lint: boolean;
-  deadCode: boolean;
-  verbose: boolean;
-  scoreOnly: boolean;
+  lint?: boolean;
+  deadCode?: boolean;
+  verbose?: boolean;
+  scoreOnly?: boolean;
+  includePaths?: string[];
   packageJsonDirectory?: string;
+}
+
+export interface DiffInfo {
+  currentBranch: string;
+  baseBranch: string;
+  changedFiles: string[];
 }
 
 export interface ClipboardCommand {
@@ -138,4 +146,17 @@ export interface KnipResults {
 export interface CleanedDiagnostic {
   message: string;
   help: string;
+}
+
+export interface ReactDoctorIgnoreConfig {
+  rules?: string[];
+  files?: string[];
+}
+
+export interface ReactDoctorConfig {
+  ignore?: ReactDoctorIgnoreConfig;
+  lint?: boolean;
+  deadCode?: boolean;
+  verbose?: boolean;
+  diff?: boolean | string;
 }

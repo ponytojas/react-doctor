@@ -87,7 +87,7 @@ const RULE_CATEGORY_MAP: Record<string, string> = {
 
 const RULE_HELP_MAP: Record<string, string> = {
   "no-derived-state-effect":
-    "Compute during render: `const derived = computeFrom(dep1, dep2)` — no useEffect needed",
+    "For derived state, compute inline: `const x = fn(dep)`. For state resets on prop change, use a key prop: `<Component key={prop} />`",
   "no-fetch-in-effect":
     "Use `useQuery()` from @tanstack/react-query, `useSWR()`, or fetch in a Server Component instead",
   "no-cascading-set-state":
@@ -257,7 +257,12 @@ export const runOxlint = async (
   hasTypeScript: boolean,
   framework: Framework,
   hasReactCompiler: boolean,
+  includePaths?: string[],
 ): Promise<Diagnostic[]> => {
+  if (includePaths !== undefined && includePaths.length === 0) {
+    return [];
+  }
+
   const configPath = path.join(os.tmpdir(), `react-doctor-oxlintrc-${process.pid}.json`);
   const pluginPath = resolvePluginPath();
   const config = createOxlintConfig({ pluginPath, framework, hasReactCompiler });
@@ -273,7 +278,11 @@ export const runOxlint = async (
       args.push("--tsconfig", "./tsconfig.json");
     }
 
-    args.push(".");
+    if (includePaths !== undefined) {
+      args.push(...includePaths);
+    } else {
+      args.push(".");
+    }
 
     const stdout = await new Promise<string>((resolve, reject) => {
       const child = spawn(process.execPath, args, {
@@ -314,7 +323,7 @@ export const runOxlint = async (
     }
 
     return output.diagnostics
-      .filter((diagnostic) => JSX_FILE_PATTERN.test(diagnostic.filename))
+      .filter((diagnostic) => diagnostic.code && JSX_FILE_PATTERN.test(diagnostic.filename))
       .map((diagnostic) => {
         const { plugin, rule } = parseRuleCode(diagnostic.code);
         const primaryLabel = diagnostic.labels[0];
