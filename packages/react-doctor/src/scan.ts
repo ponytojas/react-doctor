@@ -417,7 +417,14 @@ export const scan = async (directory: string, inputOptions: ScanOptions = {}): P
           return lintDiagnostics;
         } catch (error) {
           lintSpinner?.fail("Lint checks failed (non-fatal, skipping).");
-          logger.error(String(error));
+          if (error instanceof Error) {
+            logger.error(error.message);
+            if (error.stack) {
+              logger.dim(error.stack);
+            }
+          } else {
+            logger.error(String(error));
+          }
           return [];
         }
       })()
