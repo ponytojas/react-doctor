@@ -1,5 +1,11 @@
 # react-doctor
 
+## 0.0.21
+
+### Patch Changes
+
+- offline flag
+
 ## 0.0.20
 
 ### Patch Changes
