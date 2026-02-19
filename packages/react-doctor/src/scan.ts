@@ -6,6 +6,7 @@ import { performance } from "node:perf_hooks";
 import {
   JSX_FILE_PATTERN,
   MILLISECONDS_PER_SECOND,
+  OFFLINE_FLAG_MESSAGE,
   OFFLINE_MESSAGE,
   PERFECT_SCORE,
   SCORE_BAR_WIDTH_CHARS,
@@ -264,6 +265,7 @@ const printSummary = (
   scoreResult: ScoreResult | null,
   projectName: string,
   totalSourceFileCount: number,
+  noScoreMessage: string,
 ): void => {
   const errorCount = diagnostics.filter((diagnostic) => diagnostic.severity === "error").length;
   const warningCount = diagnostics.filter((diagnostic) => diagnostic.severity === "warning").length;
@@ -326,7 +328,7 @@ const printSummary = (
       ),
     );
     summaryFramedLines.push(createFramedLine(""));
-    summaryFramedLines.push(createFramedLine(OFFLINE_MESSAGE, highlighter.dim(OFFLINE_MESSAGE)));
+    summaryFramedLines.push(createFramedLine(noScoreMessage, highlighter.dim(noScoreMessage)));
     summaryFramedLines.push(createFramedLine(""));
   }
 
@@ -358,6 +360,7 @@ export const scan = async (directory: string, inputOptions: ScanOptions = {}): P
     deadCode: inputOptions.deadCode ?? userConfig?.deadCode ?? true,
     verbose: inputOptions.verbose ?? userConfig?.verbose ?? false,
     scoreOnly: inputOptions.scoreOnly ?? false,
+    offline: inputOptions.offline ?? false,
     includePaths: inputOptions.includePaths,
   };
 
@@ -460,13 +463,14 @@ export const scan = async (directory: string, inputOptions: ScanOptions = {}): P
 
   const elapsedMilliseconds = performance.now() - startTime;
 
-  const scoreResult = await calculateScore(diagnostics);
+  const scoreResult = options.offline ? null : await calculateScore(diagnostics);
+  const noScoreMessage = options.offline ? OFFLINE_FLAG_MESSAGE : OFFLINE_MESSAGE;
 
   if (options.scoreOnly) {
     if (scoreResult) {
       logger.log(`${scoreResult.score}`);
     } else {
-      logger.dim(OFFLINE_MESSAGE);
+      logger.dim(noScoreMessage);
     }
     return;
   }
@@ -478,7 +482,7 @@ export const scan = async (directory: string, inputOptions: ScanOptions = {}): P
       printBranding(scoreResult.score);
       printScoreGauge(scoreResult.score, scoreResult.label);
     } else {
-      logger.dim(`  ${OFFLINE_MESSAGE}`);
+      logger.dim(`  ${noScoreMessage}`);
     }
     return;
   }
@@ -493,5 +497,6 @@ export const scan = async (directory: string, inputOptions: ScanOptions = {}): P
     scoreResult,
     projectInfo.projectName,
     displayedSourceFileCount,
+    noScoreMessage,
   );
 };

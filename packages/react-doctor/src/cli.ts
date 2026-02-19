@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Command } from "commander";
-import { SEPARATOR_LENGTH_CHARS } from "./constants.js";
+import { OPEN_BASE_URL, SEPARATOR_LENGTH_CHARS } from "./constants.js";
 import { scan } from "./scan.js";
 import type { DiffInfo, ScanOptions } from "./types.js";
 import { copyToClipboard } from "./utils/copy-to-clipboard.js";
@@ -27,6 +27,7 @@ interface CliFlags {
   fix: boolean;
   prompt: boolean;
   yes: boolean;
+  offline: boolean;
   project?: string;
   diff?: boolean | string;
 }
@@ -77,6 +78,7 @@ const program = new Command()
   .option("-y, --yes", "skip prompts, scan all workspace projects")
   .option("--project <name>", "select workspace project (comma-separated for multiple)")
   .option("--diff [base]", "scan only files changed vs base branch")
+  .option("--offline", "skip telemetry (anonymous, not stored, only used to calculate score)")
   .option("--fix", "open Ami to auto-fix all issues")
   .option("--prompt", "copy latest scan output to clipboard")
   .action(async (directory: string, flags: CliFlags) => {
@@ -108,6 +110,7 @@ const program = new Command()
           flags.prompt ||
           (isCliOverride("verbose") ? Boolean(flags.verbose) : (userConfig?.verbose ?? false)),
         scoreOnly: isScoreOnly,
+        offline: flags.offline,
       };
 
       const isAutomatedEnvironment = [
@@ -254,15 +257,25 @@ const openUrl = (url: string): void => {
   execSync(openCommand, { stdio: "ignore" });
 };
 
-const buildDeeplink = (directory: string): string => {
-  const encodedDirectory = encodeURIComponent(path.resolve(directory));
-  const encodedPrompt = encodeURIComponent(DEEPLINK_FIX_PROMPT);
-  return `ami://open-project?cwd=${encodedDirectory}&prompt=${encodedPrompt}&mode=agent&autoSubmit=true`;
+const buildDeeplinkParams = (directory: string): URLSearchParams => {
+  const params = new URLSearchParams();
+  params.set("cwd", path.resolve(directory));
+  params.set("prompt", DEEPLINK_FIX_PROMPT);
+  params.set("mode", "agent");
+  params.set("autoSubmit", "true");
+  return params;
 };
+
+const buildDeeplink = (directory: string): string =>
+  `ami://open-project?${buildDeeplinkParams(directory).toString()}`;
+
+const buildWebDeeplink = (directory: string): string =>
+  `${OPEN_BASE_URL}?${buildDeeplinkParams(directory).toString()}`;
 
 const openAmiToFix = (directory: string): void => {
   const isInstalled = isAmiInstalled();
   const deeplink = buildDeeplink(directory);
+  const webDeeplink = buildWebDeeplink(directory);
 
   if (!isInstalled) {
     if (process.platform === "darwin") {
@@ -274,7 +287,7 @@ const openAmiToFix = (directory: string): void => {
     }
     logger.break();
     logger.dim("Once Ami is running, open this link to start fixing:");
-    logger.info(deeplink);
+    logger.info(webDeeplink);
     return;
   }
 
@@ -286,7 +299,7 @@ const openAmiToFix = (directory: string): void => {
   } catch {
     logger.break();
     logger.dim("Could not open Ami automatically. Open this URL manually:");
-    logger.info(deeplink);
+    logger.info(webDeeplink);
   }
 };
 
