@@ -102,8 +102,7 @@ const SKILL_TARGETS: SkillTarget[] = [
   {
     name: "Amp Code",
     detect: () => existsSync(join(HOME_DIRECTORY, ".amp")),
-    install: () =>
-      writeSkillFiles(join(HOME_DIRECTORY, ".config", "amp", "skills", SKILL_NAME)),
+    install: () => writeSkillFiles(join(HOME_DIRECTORY, ".config", "amp", "skills", SKILL_NAME)),
   },
   {
     name: "Cursor",
@@ -113,8 +112,7 @@ const SKILL_TARGETS: SkillTarget[] = [
   {
     name: "OpenCode",
     detect: () =>
-      isCommandAvailable("opencode") ||
-      existsSync(join(HOME_DIRECTORY, ".config", "opencode")),
+      isCommandAvailable("opencode") || existsSync(join(HOME_DIRECTORY, ".config", "opencode")),
     install: () =>
       writeSkillFiles(join(HOME_DIRECTORY, ".config", "opencode", "skills", SKILL_NAME)),
   },
@@ -140,21 +138,18 @@ const SKILL_TARGETS: SkillTarget[] = [
   {
     name: "Antigravity",
     detect: () =>
-      isCommandAvailable("agy") ||
-      existsSync(join(HOME_DIRECTORY, ".gemini", "antigravity")),
+      isCommandAvailable("agy") || existsSync(join(HOME_DIRECTORY, ".gemini", "antigravity")),
     install: () =>
       writeSkillFiles(join(HOME_DIRECTORY, ".gemini", "antigravity", "skills", SKILL_NAME)),
   },
   {
     name: "Gemini CLI",
-    detect: () =>
-      isCommandAvailable("gemini") || existsSync(join(HOME_DIRECTORY, ".gemini")),
+    detect: () => isCommandAvailable("gemini") || existsSync(join(HOME_DIRECTORY, ".gemini")),
     install: () => writeSkillFiles(join(HOME_DIRECTORY, ".gemini", "skills", SKILL_NAME)),
   },
   {
     name: "Codex",
-    detect: () =>
-      isCommandAvailable("codex") || existsSync(join(HOME_DIRECTORY, ".codex")),
+    detect: () => isCommandAvailable("codex") || existsSync(join(HOME_DIRECTORY, ".codex")),
     install: () => {
       const skillDirectory = join(HOME_DIRECTORY, ".codex", "skills", SKILL_NAME);
       writeSkillFiles(skillDirectory);

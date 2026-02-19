@@ -1,6 +1,10 @@
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { discoverProject, formatFrameworkName } from "../src/utils/discover-project.js";
+import {
+  discoverProject,
+  formatFrameworkName,
+  listWorkspacePackages,
+} from "../src/utils/discover-project.js";
 
 const FIXTURES_DIRECTORY = path.resolve(import.meta.dirname, "fixtures");
 const VALID_FRAMEWORKS = ["nextjs", "vite", "cra", "remix", "gatsby", "unknown"];
@@ -28,6 +32,17 @@ describe("discoverProject", () => {
 
   it("throws when package.json is missing", () => {
     expect(() => discoverProject("/nonexistent/path")).toThrow("No package.json found");
+  });
+});
+
+describe("listWorkspacePackages", () => {
+  it("resolves nested workspace patterns like apps/*/ClientApp", () => {
+    const packages = listWorkspacePackages(path.join(FIXTURES_DIRECTORY, "nested-workspaces"));
+    const packageNames = packages.map((workspacePackage) => workspacePackage.name);
+
+    expect(packageNames).toContain("my-app-client");
+    expect(packageNames).toContain("ui");
+    expect(packages).toHaveLength(2);
   });
 });
 

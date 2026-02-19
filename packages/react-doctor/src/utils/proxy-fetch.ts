@@ -50,10 +50,11 @@ export const proxyFetch = async (url: string | URL, init?: RequestInit): Promise
     const proxyUrl = getProxyUrl();
     const dispatcher = proxyUrl ? await createProxyDispatcher(proxyUrl) : null;
 
-    return await fetch(
-      url,
-      { ...init, signal: controller.signal, ...(dispatcher ? { dispatcher } : {}) } as RequestInit,
-    );
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      ...(dispatcher ? { dispatcher } : {}),
+    } as RequestInit);
   } finally {
     clearTimeout(timeoutId);
   }

@@ -153,7 +153,9 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
     return [];
   }
 
-  const baseDirectory = path.join(rootDirectory, cleanPattern.slice(0, cleanPattern.indexOf("*")));
+  const wildcardIndex = cleanPattern.indexOf("*");
+  const baseDirectory = path.join(rootDirectory, cleanPattern.slice(0, wildcardIndex));
+  const suffixAfterWildcard = cleanPattern.slice(wildcardIndex + 1);
 
   if (!fs.existsSync(baseDirectory) || !fs.statSync(baseDirectory).isDirectory()) {
     return [];
@@ -161,10 +163,12 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
 
   return fs
     .readdirSync(baseDirectory)
-    .map((entry) => path.join(baseDirectory, entry))
+    .map((entry) => path.join(baseDirectory, entry, suffixAfterWildcard))
     .filter(
       (entryPath) =>
-        fs.statSync(entryPath).isDirectory() && fs.existsSync(path.join(entryPath, "package.json")),
+        fs.existsSync(entryPath) &&
+        fs.statSync(entryPath).isDirectory() &&
+        fs.existsSync(path.join(entryPath, "package.json")),
     );
 };
 
