@@ -43,7 +43,7 @@ npx -y react-doctor@latest . --verbose
 Teach your coding agent all 47+ React best practice rules:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/millionco/react-doctor/main/install.sh | bash
+curl -fsSL https://react.doctor/install-skill.sh | bash
 ```
 
 Supports Cursor, Claude Code, Amp Code, Codex, Gemini CLI, OpenCode, Windsurf, and Antigravity.

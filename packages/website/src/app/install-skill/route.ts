@@ -1,10 +1,10 @@
-#!/bin/bash
+const INSTALL_SCRIPT = `#!/bin/bash
 set -e
 
 if [ -t 1 ]; then
-  GREEN='\033[32m'
-  DIM='\033[2m'
-  RESET='\033[0m'
+  GREEN='\\033[32m'
+  DIM='\\033[2m'
+  RESET='\\033[0m'
 else
   GREEN=''
   DIM=''
@@ -17,7 +17,7 @@ INSTALLED=0
 SKILL_CONTENT=$(cat << 'EOF'
 ---
 name: react-doctor
-description: Diagnose and fix React codebase health issues. Use when reviewing React code, fixing performance problems, auditing security, or improving code quality.
+description: Run after making React changes to catch issues early. Use when reviewing code, finishing a feature, or fixing bugs in a React project.
 version: 1.0.0
 ---
 
@@ -27,9 +27,9 @@ Scans your React codebase for security, performance, correctness, and architectu
 
 ## Usage
 
-```bash
+\\\`\\\`\\\`bash
 npx -y react-doctor@latest . --verbose --diff
-```
+\\\`\\\`\\\`
 
 ## Workflow
 
@@ -40,15 +40,15 @@ EOF
 AGENTS_CONTENT=$(cat << 'EOF'
 # React Doctor
 
-Diagnose and fix React codebase health issues. Use when reviewing React code, fixing performance problems, auditing security, or improving code quality.
+Run after making React changes to catch issues early. Use when reviewing code, finishing a feature, or fixing bugs in a React project.
 
 Scans your React codebase for security, performance, correctness, and architecture issues. Outputs a 0-100 score with actionable diagnostics.
 
 ## Usage
 
-```bash
+\\\`\\\`\\\`bash
 npx -y react-doctor@latest . --verbose --diff
-```
+\\\`\\\`\\\`
 
 ## Workflow
 
@@ -63,9 +63,9 @@ echo ""
 if [ -d "$HOME/.claude" ]; then
   SKILL_DIR="$HOME/.claude/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
-  printf "${GREEN}✔${RESET} Claude Code\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} Claude Code\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
@@ -73,9 +73,9 @@ fi
 if [ -d "$HOME/.amp" ]; then
   SKILL_DIR="$HOME/.config/amp/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
-  printf "${GREEN}✔${RESET} Amp Code\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} Amp Code\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
@@ -83,9 +83,9 @@ fi
 if [ -d "$HOME/.cursor" ]; then
   SKILL_DIR="$HOME/.cursor/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
-  printf "${GREEN}✔${RESET} Cursor\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} Cursor\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
@@ -93,9 +93,9 @@ fi
 if command -v opencode &> /dev/null || [ -d "$HOME/.config/opencode" ]; then
   SKILL_DIR="$HOME/.config/opencode/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
-  printf "${GREEN}✔${RESET} OpenCode\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} OpenCode\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
@@ -105,15 +105,15 @@ if [ -d "$HOME/.codeium" ] || [ -d "$HOME/Library/Application Support/Windsurf" 
   mkdir -p "$HOME/.codeium/windsurf/memories"
   RULES_FILE="$HOME/.codeium/windsurf/memories/global_rules.md"
   if [ -f "$RULES_FILE" ] && grep -q "$MARKER" "$RULES_FILE"; then
-    printf "${GREEN}✔${RESET} Windsurf ${DIM}(already installed)${RESET}\n"
+    printf "\${GREEN}✔\${RESET} Windsurf \${DIM}(already installed)\${RESET}\\n"
   else
     if [ -f "$RULES_FILE" ]; then
       echo "" >> "$RULES_FILE"
     fi
     echo "$MARKER" >> "$RULES_FILE"
     echo "" >> "$RULES_FILE"
-    printf '%s\n' "$SKILL_CONTENT" >> "$RULES_FILE"
-    printf "${GREEN}✔${RESET} Windsurf\n"
+    printf '%s\\n' "$SKILL_CONTENT" >> "$RULES_FILE"
+    printf "\${GREEN}✔\${RESET} Windsurf\\n"
   fi
   INSTALLED=$((INSTALLED + 1))
 fi
@@ -122,18 +122,18 @@ fi
 if command -v agy &> /dev/null || [ -d "$HOME/.gemini/antigravity" ]; then
   SKILL_DIR="$HOME/.gemini/antigravity/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
-  printf "${GREEN}✔${RESET} Antigravity\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} Antigravity\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
 # Gemini CLI
 if command -v gemini &> /dev/null || [ -d "$HOME/.gemini" ]; then
   mkdir -p "$HOME/.gemini/skills/$SKILL_NAME"
-  printf '%s\n' "$SKILL_CONTENT" > "$HOME/.gemini/skills/$SKILL_NAME/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$HOME/.gemini/skills/$SKILL_NAME/AGENTS.md"
-  printf "${GREEN}✔${RESET} Gemini CLI\n"
+  printf '%s\\n' "$SKILL_CONTENT" > "$HOME/.gemini/skills/$SKILL_NAME/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$HOME/.gemini/skills/$SKILL_NAME/AGENTS.md"
+  printf "\${GREEN}✔\${RESET} Gemini CLI\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
@@ -142,23 +142,23 @@ if command -v codex &> /dev/null || [ -d "$HOME/.codex" ]; then
   SKILL_DIR="$HOME/.codex/skills/$SKILL_NAME"
   mkdir -p "$SKILL_DIR"
   mkdir -p "$SKILL_DIR/agents"
-  printf '%s\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
-  printf '%s\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
+  printf '%s\\n' "$SKILL_CONTENT" > "$SKILL_DIR/SKILL.md"
+  printf '%s\\n' "$AGENTS_CONTENT" > "$SKILL_DIR/AGENTS.md"
   cat > "$SKILL_DIR/agents/openai.yaml" << 'YAMLEOF'
 interface:
   display_name: "react-doctor"
   short_description: "Diagnose and fix React codebase health issues"
 YAMLEOF
-  printf "${GREEN}✔${RESET} Codex\n"
+  printf "\${GREEN}✔\${RESET} Codex\\n"
   INSTALLED=$((INSTALLED + 1))
 fi
 
 # Project-level .agents/
 AGENTS_DIR=".agents/$SKILL_NAME"
 mkdir -p "$AGENTS_DIR"
-printf '%s\n' "$SKILL_CONTENT" > "$AGENTS_DIR/SKILL.md"
-printf '%s\n' "$AGENTS_CONTENT" > "$AGENTS_DIR/AGENTS.md"
-printf "${GREEN}✔${RESET} .agents/\n"
+printf '%s\\n' "$SKILL_CONTENT" > "$AGENTS_DIR/SKILL.md"
+printf '%s\\n' "$AGENTS_CONTENT" > "$AGENTS_DIR/AGENTS.md"
+printf "\${GREEN}✔\${RESET} .agents/\\n"
 INSTALLED=$((INSTALLED + 1))
 
 echo ""
@@ -179,3 +179,12 @@ if [ $INSTALLED -eq 0 ]; then
 fi
 
 echo "Done! The skill will activate when working on React projects."
+`;
+
+export const GET = (): Response =>
+  new Response(INSTALL_SCRIPT, {
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Disposition": 'attachment; filename="install.sh"',
+    },
+  });
