@@ -62,6 +62,7 @@ Options:
   -y, --yes         skip prompts, scan all workspace projects
   --project <name>  select workspace project (comma-separated for multiple)
   --diff [base]     scan only files changed vs base branch
+  --no-ami          skip Ami-related prompts
   --fix             open Ami to auto-fix all issues
   --prompt          copy latest scan output to clipboard
   -h, --help        display help for command
