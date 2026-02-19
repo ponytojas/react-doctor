@@ -397,7 +397,7 @@ const maybePromptFix = async (
     message: "Fix issues?",
     choices: [
       {
-        title: "Use ami.dev (recommended)",
+        title: "Use Ami (recommended)",
         description: "Optimized coding agent for React Doctor",
         value: FIX_METHOD_AMI,
       },
