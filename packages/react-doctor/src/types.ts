@@ -1,3 +1,5 @@
+export type FailOnLevel = "error" | "warning" | "none";
+
 export type Framework = "nextjs" | "vite" | "cra" | "remix" | "gatsby" | "expo" | "react-native" | "unknown";
 
 export interface ProjectInfo {
@@ -163,4 +165,5 @@ export interface ReactDoctorConfig {
   deadCode?: boolean;
   verbose?: boolean;
   diff?: boolean | string;
+  failOn?: FailOnLevel;
 }

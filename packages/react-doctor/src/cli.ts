@@ -9,6 +9,7 @@ import type {
   Diagnostic,
   DiffInfo,
   EstimatedScoreResult,
+  FailOnLevel,
   ReactDoctorConfig,
   ScanOptions,
 } from "./types.js";
@@ -37,7 +38,22 @@ interface CliFlags {
   ami: boolean;
   project?: string;
   diff?: boolean | string;
+  failOn: string;
 }
+
+const VALID_FAIL_ON_LEVELS = new Set<FailOnLevel>(["error", "warning", "none"]);
+
+const isValidFailOnLevel = (level: string): level is FailOnLevel =>
+  VALID_FAIL_ON_LEVELS.has(level as FailOnLevel);
+
+const shouldFailForDiagnostics = (
+  diagnostics: Diagnostic[],
+  failOnLevel: FailOnLevel,
+): boolean => {
+  if (failOnLevel === "none") return false;
+  if (failOnLevel === "warning") return diagnostics.length > 0;
+  return diagnostics.some((diagnostic) => diagnostic.severity === "error");
+};
 
 const exitWithFixHint = () => {
   logger.break();
@@ -129,6 +145,7 @@ const program = new Command()
   .option("--diff [base]", "scan only files changed vs base branch")
   .option("--offline", "skip telemetry (anonymous, not stored, only used to calculate score)")
   .option("--no-ami", "skip Ami-related prompts")
+  .option("--fail-on <level>", "exit with error code on diagnostics: error, warning, none", "none")
   .option("--fix", "open Ami to auto-fix all issues")
   .action(async (directory: string, flags: CliFlags) => {
     const isScoreOnly = flags.score;
@@ -201,6 +218,18 @@ const program = new Command()
         if (!isScoreOnly) {
           logger.break();
         }
+      }
+
+      const resolvedFailOn =
+        program.getOptionValueSource("failOn") === "cli"
+          ? flags.failOn
+          : (userConfig?.failOn ?? flags.failOn);
+      const effectiveFailOn: FailOnLevel = isValidFailOnLevel(resolvedFailOn)
+        ? resolvedFailOn
+        : "none";
+
+      if (shouldFailForDiagnostics(allDiagnostics, effectiveFailOn)) {
+        process.exitCode = 1;
       }
 
       if (flags.fix) {

@@ -496,19 +496,21 @@ export const scan = async (
           return lintDiagnostics;
         } catch (error) {
           didLintFail = true;
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          const isNativeBindingError = errorMessage.includes("native binding");
+          if (!options.scoreOnly) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const isNativeBindingError = errorMessage.includes("native binding");
 
-          if (isNativeBindingError) {
-            lintSpinner?.fail(
-              `Lint checks failed — oxlint native binding not found (Node ${process.version}).`,
-            );
-            logger.dim(
-              `  Upgrade to Node ${OXLINT_NODE_REQUIREMENT} or run: npx -p oxlint@latest react-doctor@latest`,
-            );
-          } else {
-            lintSpinner?.fail("Lint checks failed (non-fatal, skipping).");
-            logger.error(errorMessage);
+            if (isNativeBindingError) {
+              lintSpinner?.fail(
+                `Lint checks failed — oxlint native binding not found (Node ${process.version}).`,
+              );
+              logger.dim(
+                `  Upgrade to Node ${OXLINT_NODE_REQUIREMENT} or run: npx -p oxlint@latest react-doctor@latest`,
+              );
+            } else {
+              lintSpinner?.fail("Lint checks failed (non-fatal, skipping).");
+              logger.error(errorMessage);
+            }
           }
           return [];
         }
@@ -527,8 +529,10 @@ export const scan = async (
             return knipDiagnostics;
           } catch (error) {
             didDeadCodeFail = true;
-            deadCodeSpinner?.fail("Dead code detection failed (non-fatal, skipping).");
-            logger.error(String(error));
+            if (!options.scoreOnly) {
+              deadCodeSpinner?.fail("Dead code detection failed (non-fatal, skipping).");
+              logger.error(String(error));
+            }
             return [];
           }
         })()
