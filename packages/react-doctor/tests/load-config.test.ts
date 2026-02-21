@@ -105,6 +105,18 @@ describe("loadConfig", () => {
       const config = loadConfig(emptyDirectory);
       expect(config).toBeNull();
     });
+
+    it("returns null when config path is a directory instead of a file (EISDIR)", () => {
+      const directoryConfigRoot = path.join(tempRootDirectory, "eisdir-config");
+      fs.mkdirSync(directoryConfigRoot, { recursive: true });
+      fs.mkdirSync(path.join(directoryConfigRoot, "react-doctor.config.json"), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(directoryConfigRoot, "package.json"), { recursive: true });
+
+      const config = loadConfig(directoryConfigRoot);
+      expect(config).toBeNull();
+    });
   });
 
   describe("scan options in config", () => {

@@ -5,6 +5,7 @@ import { createOptions } from "knip/session";
 import { MAX_KNIP_RETRIES } from "../constants.js";
 import type { Diagnostic, KnipIssueRecords, KnipResults } from "../types.js";
 import { findMonorepoRoot } from "./find-monorepo-root.js";
+import { isFile } from "./is-file.js";
 
 const KNIP_CATEGORY_MAP: Record<string, string> = {
   files: "Dead Code",
@@ -135,7 +136,7 @@ export const runKnip = async (rootDirectory: string): Promise<Diagnostic[]> => {
 
   if (monorepoRoot) {
     const packageJsonPath = path.join(rootDirectory, "package.json");
-    const packageJson = fs.existsSync(packageJsonPath)
+    const packageJson = isFile(packageJsonPath)
       ? JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"))
       : {};
     const workspaceName = packageJson.name ?? path.basename(rootDirectory);

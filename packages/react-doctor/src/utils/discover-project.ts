@@ -10,6 +10,7 @@ import type {
   WorkspacePackage,
 } from "../types.js";
 import { findMonorepoRoot, isMonorepoRoot } from "./find-monorepo-root.js";
+import { isFile } from "./is-file.js";
 import { readPackageJson } from "./read-package-json.js";
 
 const REACT_COMPILER_PACKAGES = new Set([
@@ -139,7 +140,7 @@ const extractDependencyInfo = (packageJson: PackageJson): DependencyInfo => {
 
 const parsePnpmWorkspacePatterns = (rootDirectory: string): string[] => {
   const workspacePath = path.join(rootDirectory, "pnpm-workspace.yaml");
-  if (!fs.existsSync(workspacePath)) return [];
+  if (!isFile(workspacePath)) return [];
 
   const content = fs.readFileSync(workspacePath, "utf-8");
   const patterns: string[] = [];
@@ -181,7 +182,7 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
 
   if (!cleanPattern.includes("*")) {
     const directoryPath = path.join(rootDirectory, cleanPattern);
-    if (fs.existsSync(directoryPath) && fs.existsSync(path.join(directoryPath, "package.json"))) {
+    if (fs.existsSync(directoryPath) && isFile(path.join(directoryPath, "package.json"))) {
       return [directoryPath];
     }
     return [];
@@ -202,7 +203,7 @@ const resolveWorkspaceDirectories = (rootDirectory: string, pattern: string): st
       (entryPath) =>
         fs.existsSync(entryPath) &&
         fs.statSync(entryPath).isDirectory() &&
-        fs.existsSync(path.join(entryPath, "package.json")),
+        isFile(path.join(entryPath, "package.json")),
     );
 };
 
@@ -210,7 +211,10 @@ const findDependencyInfoFromMonorepoRoot = (directory: string): DependencyInfo =
   const monorepoRoot = findMonorepoRoot(directory);
   if (!monorepoRoot) return { reactVersion: null, framework: "unknown" };
 
-  const rootPackageJson = readPackageJson(path.join(monorepoRoot, "package.json"));
+  const monorepoPackageJsonPath = path.join(monorepoRoot, "package.json");
+  if (!isFile(monorepoPackageJsonPath)) return { reactVersion: null, framework: "unknown" };
+
+  const rootPackageJson = readPackageJson(monorepoPackageJsonPath);
   const rootInfo = extractDependencyInfo(rootPackageJson);
   const workspaceInfo = findReactInWorkspaces(monorepoRoot, rootPackageJson);
 
@@ -262,7 +266,7 @@ export const discoverReactSubprojects = (rootDirectory: string): WorkspacePackag
   const packages: WorkspacePackage[] = [];
 
   const rootPackageJsonPath = path.join(rootDirectory, "package.json");
-  if (fs.existsSync(rootPackageJsonPath)) {
+  if (isFile(rootPackageJsonPath)) {
     const rootPackageJson = readPackageJson(rootPackageJsonPath);
     if (hasReactDependency(rootPackageJson)) {
       const name = rootPackageJson.name ?? path.basename(rootDirectory);
@@ -279,7 +283,7 @@ export const discoverReactSubprojects = (rootDirectory: string): WorkspacePackag
 
     const subdirectory = path.join(rootDirectory, entry.name);
     const packageJsonPath = path.join(subdirectory, "package.json");
-    if (!fs.existsSync(packageJsonPath)) continue;
+    if (!isFile(packageJsonPath)) continue;
 
     const packageJson = readPackageJson(packageJsonPath);
     if (!hasReactDependency(packageJson)) continue;
@@ -293,7 +297,7 @@ export const discoverReactSubprojects = (rootDirectory: string): WorkspacePackag
 
 export const listWorkspacePackages = (rootDirectory: string): WorkspacePackage[] => {
   const packageJsonPath = path.join(rootDirectory, "package.json");
-  if (!fs.existsSync(packageJsonPath)) return [];
+  if (!isFile(packageJsonPath)) return [];
 
   const packageJson = readPackageJson(packageJsonPath);
   const patterns = getWorkspacePatterns(rootDirectory, packageJson);
@@ -324,7 +328,7 @@ const hasCompilerPackage = (packageJson: PackageJson): boolean => {
 };
 
 const fileContainsPattern = (filePath: string, pattern: RegExp): boolean => {
-  if (!fs.existsSync(filePath)) return false;
+  if (!isFile(filePath)) return false;
   const content = fs.readFileSync(filePath, "utf-8");
   return pattern.test(content);
 };
@@ -345,7 +349,7 @@ const detectReactCompiler = (directory: string, packageJson: PackageJson): boole
   let ancestorDirectory = path.dirname(directory);
   while (ancestorDirectory !== path.dirname(ancestorDirectory)) {
     const ancestorPackagePath = path.join(ancestorDirectory, "package.json");
-    if (fs.existsSync(ancestorPackagePath)) {
+    if (isFile(ancestorPackagePath)) {
       const ancestorPackageJson = readPackageJson(ancestorPackagePath);
       if (hasCompilerPackage(ancestorPackageJson)) return true;
     }
@@ -357,7 +361,7 @@ const detectReactCompiler = (directory: string, packageJson: PackageJson): boole
 
 export const discoverProject = (directory: string): ProjectInfo => {
   const packageJsonPath = path.join(directory, "package.json");
-  if (!fs.existsSync(packageJsonPath)) {
+  if (!isFile(packageJsonPath)) {
     throw new Error(`No package.json found in ${directory}`);
   }
 

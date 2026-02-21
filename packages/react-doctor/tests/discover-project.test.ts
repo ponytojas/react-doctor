@@ -36,6 +36,14 @@ describe("discoverProject", () => {
   it("throws when package.json is missing", () => {
     expect(() => discoverProject("/nonexistent/path")).toThrow("No package.json found");
   });
+
+  it("throws when package.json is a directory instead of a file", () => {
+    const projectDirectory = path.join(tempDirectory, "eisdir-root");
+    fs.mkdirSync(projectDirectory, { recursive: true });
+    fs.mkdirSync(path.join(projectDirectory, "package.json"), { recursive: true });
+
+    expect(() => discoverProject(projectDirectory)).toThrow("No package.json found");
+  });
 });
 
 describe("listWorkspacePackages", () => {
@@ -56,6 +64,22 @@ afterAll(() => {
 });
 
 describe("discoverReactSubprojects", () => {
+  it("skips subdirectories where package.json is a directory (EISDIR)", () => {
+    const rootDirectory = path.join(tempDirectory, "eisdir-package-json");
+    const subdirectory = path.join(rootDirectory, "broken-sub");
+    fs.mkdirSync(rootDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(rootDirectory, "package.json"),
+      JSON.stringify({ name: "my-app", dependencies: { react: "^19.0.0" } }),
+    );
+    fs.mkdirSync(subdirectory, { recursive: true });
+    fs.mkdirSync(path.join(subdirectory, "package.json"), { recursive: true });
+
+    const packages = discoverReactSubprojects(rootDirectory);
+    expect(packages).toHaveLength(1);
+    expect(packages[0].name).toBe("my-app");
+  });
+
   it("includes root directory when it has a react dependency", () => {
     const rootDirectory = path.join(tempDirectory, "root-with-react");
     fs.mkdirSync(rootDirectory, { recursive: true });
