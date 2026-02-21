@@ -69,7 +69,47 @@ const FRAMEWORK_DISPLAY_NAMES: Record<Framework, string> = {
 export const formatFrameworkName = (framework: Framework): string =>
   FRAMEWORK_DISPLAY_NAMES[framework];
 
-const countSourceFiles = (rootDirectory: string): number => {
+const IGNORED_DIRECTORIES = new Set([
+  "node_modules",
+  ".git",
+  ".next",
+  ".turbo",
+  "dist",
+  "build",
+  "coverage",
+  ".cache",
+  ".output",
+  ".nuxt",
+  ".expo",
+]);
+
+const countSourceFilesViaFilesystem = (rootDirectory: string): number => {
+  let count = 0;
+  const stack = [rootDirectory];
+
+  while (stack.length > 0) {
+    const currentDirectory = stack.pop()!;
+    const entries = fs.readdirSync(currentDirectory, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith(".") || entry.name === ".git") {
+          if (!IGNORED_DIRECTORIES.has(entry.name)) {
+            stack.push(path.join(currentDirectory, entry.name));
+          }
+        }
+        continue;
+      }
+      if (entry.isFile() && SOURCE_FILE_PATTERN.test(entry.name)) {
+        count++;
+      }
+    }
+  }
+
+  return count;
+};
+
+const countSourceFilesViaGit = (rootDirectory: string): number | null => {
   const result = spawnSync("git", ["ls-files", "--cached", "--others", "--exclude-standard"], {
     cwd: rootDirectory,
     encoding: "utf-8",
@@ -77,13 +117,16 @@ const countSourceFiles = (rootDirectory: string): number => {
   });
 
   if (result.error || result.status !== 0) {
-    return 0;
+    return null;
   }
 
   return result.stdout
     .split("\n")
     .filter((filePath) => filePath.length > 0 && SOURCE_FILE_PATTERN.test(filePath)).length;
 };
+
+const countSourceFiles = (rootDirectory: string): number =>
+  countSourceFilesViaGit(rootDirectory) ?? countSourceFilesViaFilesystem(rootDirectory);
 
 const collectAllDependencies = (packageJson: PackageJson): Record<string, string> => ({
   ...packageJson.peerDependencies,
