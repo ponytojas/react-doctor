@@ -105,6 +105,18 @@ describe("loadConfig", () => {
       const config = loadConfig(emptyDirectory);
       expect(config).toBeNull();
     });
+
+    it("returns null when config path is a directory instead of a file (EISDIR)", () => {
+      const directoryConfigRoot = path.join(tempRootDirectory, "eisdir-config");
+      fs.mkdirSync(directoryConfigRoot, { recursive: true });
+      fs.mkdirSync(path.join(directoryConfigRoot, "react-doctor.config.json"), {
+        recursive: true,
+      });
+      fs.mkdirSync(path.join(directoryConfigRoot, "package.json"), { recursive: true });
+
+      const config = loadConfig(directoryConfigRoot);
+      expect(config).toBeNull();
+    });
   });
 
   describe("scan options in config", () => {
@@ -181,6 +193,50 @@ describe("loadConfig", () => {
       const config = loadConfig(nonObjectDirectory);
       expect(config).toBeNull();
       expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("must be a JSON object"));
+      warnSpy.mockRestore();
+    });
+
+    it("falls through to package.json when config file has malformed JSON", () => {
+      const fallbackDirectory = path.join(tempRootDirectory, "malformed-with-fallback");
+      fs.mkdirSync(fallbackDirectory, { recursive: true });
+      fs.writeFileSync(
+        path.join(fallbackDirectory, "react-doctor.config.json"),
+        "not valid json{{{",
+      );
+      fs.writeFileSync(
+        path.join(fallbackDirectory, "package.json"),
+        JSON.stringify({
+          name: "test",
+          reactDoctor: { ignore: { rules: ["from-fallback"] } },
+        }),
+      );
+
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const config = loadConfig(fallbackDirectory);
+      expect(config).toEqual({ ignore: { rules: ["from-fallback"] } });
+      expect(warnSpy).toHaveBeenCalledOnce();
+      warnSpy.mockRestore();
+    });
+
+    it("falls through to package.json when config file is not an object", () => {
+      const nonObjectFallbackDirectory = path.join(tempRootDirectory, "non-object-with-fallback");
+      fs.mkdirSync(nonObjectFallbackDirectory, { recursive: true });
+      fs.writeFileSync(
+        path.join(nonObjectFallbackDirectory, "react-doctor.config.json"),
+        JSON.stringify([1, 2, 3]),
+      );
+      fs.writeFileSync(
+        path.join(nonObjectFallbackDirectory, "package.json"),
+        JSON.stringify({
+          name: "test",
+          reactDoctor: { ignore: { rules: ["from-non-object-fallback"] } },
+        }),
+      );
+
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const config = loadConfig(nonObjectFallbackDirectory);
+      expect(config).toEqual({ ignore: { rules: ["from-non-object-fallback"] } });
+      expect(warnSpy).toHaveBeenCalledOnce();
       warnSpy.mockRestore();
     });
 

@@ -4,6 +4,9 @@ const WARNING_RULE_PENALTY = 0.75;
 const SCORE_GOOD_THRESHOLD = 75;
 const SCORE_OK_THRESHOLD = 50;
 
+const ERROR_ESTIMATED_FIX_RATE = 0.85;
+const WARNING_ESTIMATED_FIX_RATE = 0.8;
+
 interface DiagnosticInput {
   filePath: string;
   plugin: string;
@@ -23,9 +26,14 @@ const getScoreLabel = (score: number): string => {
   return "Critical";
 };
 
-const calculateScore = (diagnostics: DiagnosticInput[]): number => {
-  if (diagnostics.length === 0) return PERFECT_SCORE;
+const scoreFromRuleCounts = (errorRuleCount: number, warningRuleCount: number): number => {
+  const penalty = errorRuleCount * ERROR_RULE_PENALTY + warningRuleCount * WARNING_RULE_PENALTY;
+  return Math.max(0, Math.round(PERFECT_SCORE - penalty));
+};
 
+const countUniqueRules = (
+  diagnostics: DiagnosticInput[],
+): { errorRuleCount: number; warningRuleCount: number } => {
   const errorRules = new Set<string>();
   const warningRules = new Set<string>();
 
@@ -38,9 +46,7 @@ const calculateScore = (diagnostics: DiagnosticInput[]): number => {
     }
   }
 
-  const penalty = errorRules.size * ERROR_RULE_PENALTY + warningRules.size * WARNING_RULE_PENALTY;
-
-  return Math.max(0, Math.round(PERFECT_SCORE - penalty));
+  return { errorRuleCount: errorRules.size, warningRuleCount: warningRules.size };
 };
 
 const isValidDiagnostic = (value: unknown): value is DiagnosticInput => {
@@ -69,7 +75,7 @@ export const OPTIONS = (): Response => new Response(null, { status: 204, headers
 
 export const POST = async (request: Request): Promise<Response> => {
   const body = await request.json().catch(() => null);
-  console.log("[/api/score]", JSON.stringify(body));
+  console.log("[/api/estimate-score]", JSON.stringify(body));
 
   if (!body || !Array.isArray(body.diagnostics)) {
     return Response.json(
@@ -90,7 +96,28 @@ export const POST = async (request: Request): Promise<Response> => {
     );
   }
 
-  const score = calculateScore(body.diagnostics);
+  const { errorRuleCount, warningRuleCount } = countUniqueRules(body.diagnostics);
 
-  return Response.json({ score, label: getScoreLabel(score) }, { headers: CORS_HEADERS });
+  const currentScore = scoreFromRuleCounts(errorRuleCount, warningRuleCount);
+
+  const estimatedUnfixedErrorRuleCount = Math.round(
+    errorRuleCount * (1 - ERROR_ESTIMATED_FIX_RATE),
+  );
+  const estimatedUnfixedWarningRuleCount = Math.round(
+    warningRuleCount * (1 - WARNING_ESTIMATED_FIX_RATE),
+  );
+  const estimatedScore = scoreFromRuleCounts(
+    estimatedUnfixedErrorRuleCount,
+    estimatedUnfixedWarningRuleCount,
+  );
+
+  return Response.json(
+    {
+      currentScore,
+      currentLabel: getScoreLabel(currentScore),
+      estimatedScore,
+      estimatedLabel: getScoreLabel(estimatedScore),
+    },
+    { headers: CORS_HEADERS },
+  );
 };

@@ -62,13 +62,33 @@ const getChangedFilesSinceBranch = (directory: string, baseBranch: string): stri
   }
 };
 
+const getUncommittedChangedFiles = (directory: string): string[] => {
+  try {
+    const output = execSync("git diff --name-only --diff-filter=ACMR --relative HEAD", {
+      cwd: directory,
+      stdio: "pipe",
+    })
+      .toString()
+      .trim();
+    if (!output) return [];
+    return output.split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+};
+
 export const getDiffInfo = (directory: string, explicitBaseBranch?: string): DiffInfo | null => {
   const currentBranch = getCurrentBranch(directory);
   if (!currentBranch) return null;
 
   const baseBranch = explicitBaseBranch ?? detectDefaultBranch(directory);
   if (!baseBranch) return null;
-  if (currentBranch === baseBranch) return null;
+
+  if (currentBranch === baseBranch) {
+    const uncommittedFiles = getUncommittedChangedFiles(directory);
+    if (uncommittedFiles.length === 0) return null;
+    return { currentBranch, baseBranch, changedFiles: uncommittedFiles, isCurrentChanges: true };
+  }
 
   const changedFiles = getChangedFilesSinceBranch(directory, baseBranch);
   return { currentBranch, baseBranch, changedFiles };

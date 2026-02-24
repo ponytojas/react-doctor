@@ -2,7 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { main } from "knip";
 import { createOptions } from "knip/session";
+import { MAX_KNIP_RETRIES } from "../constants.js";
 import type { Diagnostic, KnipIssueRecords, KnipResults } from "../types.js";
+import { findMonorepoRoot } from "./find-monorepo-root.js";
+import { isFile } from "./is-file.js";
 
 const KNIP_CATEGORY_MAP: Record<string, string> = {
   files: "Dead Code",
@@ -72,26 +75,6 @@ const silenced = async <T>(fn: () => Promise<T>): Promise<T> => {
   }
 };
 
-const findMonorepoRoot = (directory: string): string | null => {
-  let currentDirectory = path.dirname(directory);
-
-  while (currentDirectory !== path.dirname(currentDirectory)) {
-    const hasWorkspaceConfig =
-      fs.existsSync(path.join(currentDirectory, "pnpm-workspace.yaml")) ||
-      (() => {
-        const packageJsonPath = path.join(currentDirectory, "package.json");
-        if (!fs.existsSync(packageJsonPath)) return false;
-        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-        return Array.isArray(packageJson.workspaces) || packageJson.workspaces?.packages;
-      })();
-
-    if (hasWorkspaceConfig) return currentDirectory;
-    currentDirectory = path.dirname(currentDirectory);
-  }
-
-  return null;
-};
-
 const CONFIG_LOADING_ERROR_PATTERN = /Error loading .*\/([a-z-]+)\.config\./;
 
 const extractFailedPluginName = (error: unknown): string | null => {
@@ -99,17 +82,22 @@ const extractFailedPluginName = (error: unknown): string | null => {
   return match?.[1] ?? null;
 };
 
-const MAX_KNIP_RETRIES = 5;
+const TSCONFIG_FILENAMES = ["tsconfig.base.json", "tsconfig.json"];
+
+const resolveTsConfigFile = (directory: string): string | undefined =>
+  TSCONFIG_FILENAMES.find((filename) => fs.existsSync(path.join(directory, filename)));
 
 const runKnipWithOptions = async (
   knipCwd: string,
   workspaceName?: string,
 ): Promise<KnipResults> => {
+  const tsConfigFile = resolveTsConfigFile(knipCwd);
   const options = await silenced(() =>
     createOptions({
       cwd: knipCwd,
       isShowProgress: false,
       ...(workspaceName ? { workspace: workspaceName } : {}),
+      ...(tsConfigFile ? { tsConfigFile } : {}),
     }),
   );
 
@@ -148,7 +136,7 @@ export const runKnip = async (rootDirectory: string): Promise<Diagnostic[]> => {
 
   if (monorepoRoot) {
     const packageJsonPath = path.join(rootDirectory, "package.json");
-    const packageJson = fs.existsSync(packageJsonPath)
+    const packageJson = isFile(packageJsonPath)
       ? JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"))
       : {};
     const workspaceName = packageJson.name ?? path.basename(rootDirectory);

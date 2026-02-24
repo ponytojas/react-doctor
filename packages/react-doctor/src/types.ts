@@ -1,4 +1,14 @@
-export type Framework = "nextjs" | "vite" | "cra" | "remix" | "gatsby" | "unknown";
+export type FailOnLevel = "error" | "warning" | "none";
+
+export type Framework =
+  | "nextjs"
+  | "vite"
+  | "cra"
+  | "remix"
+  | "gatsby"
+  | "expo"
+  | "react-native"
+  | "unknown";
 
 export interface ProjectInfo {
   rootDirectory: string;
@@ -83,11 +93,25 @@ export interface ScoreResult {
   label: string;
 }
 
+export interface ScanResult {
+  diagnostics: Diagnostic[];
+  scoreResult: ScoreResult | null;
+  skippedChecks: string[];
+}
+
+export interface EstimatedScoreResult {
+  currentScore: number;
+  currentLabel: string;
+  estimatedScore: number;
+  estimatedLabel: string;
+}
+
 export interface ScanOptions {
   lint?: boolean;
   deadCode?: boolean;
   verbose?: boolean;
   scoreOnly?: boolean;
+  offline?: boolean;
   includePaths?: string[];
   packageJsonDirectory?: string;
 }
@@ -96,16 +120,7 @@ export interface DiffInfo {
   currentBranch: string;
   baseBranch: string;
   changedFiles: string[];
-}
-
-export interface ClipboardCommand {
-  command: string;
-  args: string[];
-}
-
-export interface LoggerCaptureState {
-  isEnabled: boolean;
-  lines: string[];
+  isCurrentChanges?: boolean;
 }
 
 export interface HandleErrorOptions {
@@ -159,4 +174,5 @@ export interface ReactDoctorConfig {
   deadCode?: boolean;
   verbose?: boolean;
   diff?: boolean | string;
+  failOn?: FailOnLevel;
 }
